@@ -1,0 +1,21 @@
+node_modules/
+.next/
+dist/
+out/
+coverage/
+
+.env
+.env.local
+.env.*.local
+
+*.log
+.DS_Store
+Thumbs.db
+
+.turbo/
+.vercel/
+next-env.d.ts
+*.tsbuildinfo
+
+# 單據影像(報帳憑證,只存本機/物件儲存,不進 git)
+uploads/

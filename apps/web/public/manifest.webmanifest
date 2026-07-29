@@ -1,0 +1,10 @@
+{
+  "name": "報帳單據",
+  "short_name": "報帳",
+  "description": "拍照上傳、辨識、分類、月結匯出的公司報帳單據管理",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": []
+}

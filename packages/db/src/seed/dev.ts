@@ -1,0 +1,45 @@
+/**
+ * 開發用種子資料:預設分類 + 一個 admin 使用者。
+ * 執行:pnpm --filter @expense-receipts/db seed
+ */
+import { createDb, categories, users } from "../index";
+
+// 與 packages/core/src/categories.ts 的 DEFAULT_CATEGORIES 同步
+const DEFAULT_CATEGORIES = [
+  { code: "travel", name: "差旅費" },
+  { code: "transport", name: "交通費" },
+  { code: "meals", name: "伙食費" },
+  { code: "entertainment", name: "交際費" },
+  { code: "office_supplies", name: "文具用品" },
+  { code: "postage", name: "郵電費" },
+  { code: "utilities", name: "水電瓦斯費" },
+  { code: "rent", name: "租金支出" },
+  { code: "software", name: "軟體與雲端服務" },
+  { code: "hardware", name: "設備與雜項購置" },
+  { code: "insurance", name: "保險費" },
+  { code: "misc", name: "雜費" },
+];
+
+async function main() {
+  const db = createDb(
+    process.env.DATABASE_URL ?? "postgresql://app:app@localhost:5433/expense_receipts",
+  );
+
+  await db
+    .insert(categories)
+    .values(DEFAULT_CATEGORIES.map((c, i) => ({ ...c, sortOrder: i })))
+    .onConflictDoNothing();
+
+  await db
+    .insert(users)
+    .values({ email: "admin@example.com", name: "Admin", role: "admin" })
+    .onConflictDoNothing();
+
+  console.log("seed 完成");
+  process.exit(0);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

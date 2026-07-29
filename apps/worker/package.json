@@ -1,0 +1,23 @@
+{
+  "name": "@expense-receipts/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expense-receipts/config": "workspace:*",
+    "@expense-receipts/core": "workspace:*",
+    "@expense-receipts/db": "workspace:*",
+    "drizzle-orm": "^0.44.2",
+    "pg-boss": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
+  }
+}

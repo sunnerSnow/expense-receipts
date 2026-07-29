@@ -1,0 +1,28 @@
+{
+  "name": "@expense-receipts/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expense-receipts/config": "workspace:*",
+    "@expense-receipts/core": "workspace:*",
+    "@expense-receipts/db": "workspace:*",
+    "drizzle-orm": "^0.44.2",
+    "jsqr": "^1.4.0",
+    "next": "^15.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.8.0"
+  }
+}
