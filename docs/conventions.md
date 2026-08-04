@@ -76,3 +76,14 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
 
 - core 的公開函式必有 vitest 單元測試,測試檔與原始碼同目錄(`*.test.ts`)
 - 跑 `pnpm test` = 全 workspace;目前只有 core 有測試腳本
+- **`pnpm build` 綠不代表 `pnpm dev` 能跑**:dev 會多編一份 edge runtime 的
+  `instrumentation`,production build 不會。動到 `lib/env.ts`、`instrumentation.ts`
+  或 `packages/config` 時,一定要真的起一次 `pnpm dev` 並開 `/login` 確認 200
+
+## 8. Node 專屬 API 與 edge runtime
+
+- Next 會把 `instrumentation.ts` 同時編成 nodejs 與 edge 兩份。任何會牽連到
+  `node:fs` / `node:path` 之類模組的 import,都要用編譯期常數擋住:
+  `if (process.env.NEXT_RUNTIME === "nodejs") { await import("./lib/env"); }`
+- `packages/config` 的 `index.ts` 會被 web 端 import,新增依賴 Node API 的東西時
+  要意識到它會被拉進 web 的編譯圖(`resolveFromRepoRoot` 就是這個情況)
