@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
-import jsQR from "jsqr";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   isEInvoiceLeftQr,
   parseEInvoiceQr,
   type EInvoiceQr,
 } from "@expense-receipts/core";
+import type { QrDecodeResponse } from "./qr-worker";
 import { MANUAL_DOC_TYPES } from "@/lib/labels";
 import { DOC_TYPE_LABELS } from "@/lib/labels";
 import { createReceipt, type ActionState } from "../actions";
@@ -26,20 +26,101 @@ const inputStyle = { padding: "0.5rem", fontSize: "1rem", width: "100%" } as con
 const rowStyle = { display: "grid", gap: "0.25rem", marginBottom: "0.75rem" } as const;
 
 /**
- * 在瀏覽器解碼影像上的 QR。目前一次只取 jsQR 找到的第一顆條碼:
- * 若是電子發票左條碼(含所有帳務關鍵欄位)即採用;右條碼(接續品項)暫不處理。
+ * 解碼時把長邊縮到這個尺寸。
+ *
+ * 為什麼一定要縮:手機照片是 4000×3000 ≈ 1200 萬像素,jsQR 是**同步**運算,
+ * 直接掃原圖會鎖死主執行緒好幾十秒 —— 畫面看起來就是完全凍住。
+ * QR 偵測需要的是每個模組 2~3 像素,不是整張高解析度。
+ *
+ * 兩段式:先用 1600(快),沒找到再用 2600 試一次(電子發票的 QR 在整張照片裡
+ * 佔比很小,縮太多可能讀不到)。
  */
-async function decodeQr(file: File): Promise<string | null> {
-  const bitmap = await createImageBitmap(file);
+const DECODE_EDGES = [1600, 2600] as const;
+
+/** 解碼逾時上限:超過就放棄走 AI 辨識,不讓使用者卡在灰掉的按鈕前 */
+const DECODE_TIMEOUT_MS = 8000;
+
+/** 把 bitmap 縮到指定長邊,取出 RGBA 像素(原生實作,主執行緒跑很快) */
+function extractPixels(
+  bitmap: ImageBitmap,
+  maxEdge: number,
+): { buffer: ArrayBuffer; width: number; height: number } | null {
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+
   const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext("2d");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) return null;
-  ctx.drawImage(bitmap, 0, 0);
-  const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const code = jsQR(data, width, height, { inversionAttempts: "attemptBoth" });
-  return code?.data ?? null;
+  ctx.drawImage(bitmap, 0, 0, width, height);
+
+  const { data } = ctx.getImageData(0, 0, width, height);
+  return { buffer: data.buffer as ArrayBuffer, width, height };
+}
+
+/** 把一份像素丟給 worker 解碼 */
+function decodeInWorker(
+  worker: Worker,
+  payload: { buffer: ArrayBuffer; width: number; height: number },
+): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const onMessage = (event: MessageEvent<QrDecodeResponse>) => {
+      cleanup();
+      if ("error" in event.data) reject(new Error(event.data.error));
+      else resolve(event.data.text);
+    };
+    const onError = (event: ErrorEvent) => {
+      cleanup();
+      reject(new Error(event.message || "worker 錯誤"));
+    };
+    function cleanup() {
+      worker.removeEventListener("message", onMessage);
+      worker.removeEventListener("error", onError);
+    }
+    worker.addEventListener("message", onMessage);
+    worker.addEventListener("error", onError);
+    // transfer:像素陣列直接移交,不複製
+    worker.postMessage(payload, [payload.buffer]);
+  });
+}
+
+/**
+ * 在瀏覽器解碼影像上的 QR。目前一次只取找到的第一顆條碼:
+ * 若是電子發票左條碼(含所有帳務關鍵欄位)即採用;右條碼(接續品項)暫不處理。
+ *
+ * 先掃縮小版(快),沒找到再掃大一級 —— 電子發票的 QR 在整張照片裡佔比很小,
+ * 縮太多可能讀不到。因為跑在 worker 裡,多掃一輪不會讓畫面卡住。
+ */
+async function decodeQr(worker: Worker, file: File): Promise<string | null> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    for (const edge of DECODE_EDGES) {
+      const payload = extractPixels(bitmap, edge);
+      if (!payload) return null;
+      const found = await decodeInWorker(worker, payload);
+      if (found) return found;
+      // 原圖比這一級還小,再放大掃一次沒有意義
+      if (Math.max(bitmap.width, bitmap.height) <= edge) break;
+    }
+    return null;
+  } finally {
+    bitmap.close?.();
+  }
+}
+
+/** 逾時就當作「沒有條碼」,交給 AI 辨識 —— 卡住不動比辨識失敗更難處理 */
+async function decodeQrWithTimeout(worker: Worker, file: File): Promise<string | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), DECODE_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([decodeQr(worker, file), timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export function UploadForm({ categories }: { categories: Category[] }) {
@@ -48,6 +129,27 @@ export function UploadForm({ categories }: { categories: Category[] }) {
   const [decoding, setDecoding] = useState(false);
   const [fallback, setFallback] = useState<Fallback>("ai");
   const fileRef = useRef<HTMLInputElement>(null);
+  const workerRef = useRef<Worker | null>(null);
+
+  // worker 延後建立(選檔時才需要),離開頁面時收掉
+  useEffect(() => {
+    return () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, []);
+
+  /** 建不出 worker(舊瀏覽器、被政策擋掉)時回 null,改直接走 AI 辨識 */
+  function getWorker(): Worker | null {
+    if (!workerRef.current) {
+      try {
+        workerRef.current = new Worker(new URL("./qr-worker.ts", import.meta.url));
+      } catch {
+        return null;
+      }
+    }
+    return workerRef.current;
+  }
 
   async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -56,8 +158,18 @@ export function UploadForm({ categories }: { categories: Category[] }) {
       return;
     }
     setDecoding(true);
+    // 先讓表單可用(預設 AI 辨識),解碼是「有找到才升級成掃碼模式」的加分項。
+    // 這樣即使解碼慢或失敗,使用者也不會卡在灰掉的按鈕前。
+    setDecoded({ mode: "fallback", note: "正在檢查有沒有電子發票條碼…" });
+    const worker = getWorker();
+    if (!worker) {
+      // 沒有 worker 就不在主執行緒硬掃(那會凍住畫面),直接交給 AI 辨識
+      setDecoded({ mode: "fallback", note: "這個瀏覽器無法在本機解條碼。" });
+      setDecoding(false);
+      return;
+    }
     try {
-      const raw = await decodeQr(file);
+      const raw = await decodeQrWithTimeout(worker, file);
       if (raw && isEInvoiceLeftQr(raw)) {
         const invoice = parseEInvoiceQr(raw);
         setDecoded(invoice ? { mode: "qr", invoice } : { mode: "fallback", note: "條碼解析失敗。" });
@@ -209,12 +321,22 @@ export function UploadForm({ categories }: { categories: Category[] }) {
 
       {state.error ? <p style={{ color: "#c0392b" }}>{state.error}</p> : null}
 
-      <button type="submit" disabled={pending || decoded === null} style={{ padding: "0.6rem 1.2rem", fontSize: "1rem" }}>
+      {/*
+        解碼期間仍鎖住送出:如果這張是電子發票,搶先送出會白花一次 AI 辨識、
+        還得人工確認。縮圖後解碼通常不到 1 秒,且有 8 秒逾時上限兜底。
+      */}
+      <button
+        type="submit"
+        disabled={pending || decoding || decoded === null}
+        style={{ padding: "0.6rem 1.2rem", fontSize: "1rem" }}
+      >
         {pending
           ? "儲存中…"
-          : decoded?.mode === "fallback" && fallback === "ai"
-            ? "上傳並辨識"
-            : "儲存單據"}
+          : decoding
+            ? "檢查條碼中…"
+            : decoded?.mode === "fallback" && fallback === "ai"
+              ? "上傳並辨識"
+              : "儲存單據"}
       </button>
     </form>
   );

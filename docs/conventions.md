@@ -80,6 +80,15 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
   `instrumentation`,production build 不會。動到 `lib/env.ts`、`instrumentation.ts`
   或 `packages/config` 時,一定要真的起一次 `pnpm dev` 並開 `/login` 確認 200
 
+## 7b. 客戶端的重運算
+
+- 會吃掉主執行緒的同步運算(影像處理、解碼)一律放 Web Worker,不放元件裡。
+  jsQR 掃一張手機照片(1200 萬像素)要好幾秒,跑在主執行緒上畫面會整個凍住 ——
+  使用者看到的是「按鈕點不動」,而不是「正在處理」
+- 處理影像前先縮到夠用的尺寸(QR 偵測每個模組 2~3 像素就夠,不需要原解析度)
+- 建不出 worker 時要有退路(直接走伺服器端辨識),不要 fallback 回主執行緒硬算
+- 任何等待都要有逾時上限,並且不要讓送出按鈕永遠停在 disabled
+
 ## 8. Node 專屬 API 與 edge runtime
 
 - Next 會把 `instrumentation.ts` 同時編成 nodejs 與 edge 兩份。任何會牽連到
