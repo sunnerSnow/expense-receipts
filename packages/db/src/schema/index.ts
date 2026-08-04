@@ -76,6 +76,16 @@ export const receipts = pgTable(
     deductibility: text("deductibility", { enum: ["deductible", "expense_only", "review"] }),
     categoryId: uuid("category_id").references(() => categories.id),
     note: text("note"),
+    /** AI 辨識工作狀態(見 core 的 RECOGNITION_STATUSES);非 AI 單據為 none */
+    recognitionStatus: text("recognition_status", {
+      enum: ["none", "queued", "succeeded", "failed"],
+    })
+      .notNull()
+      .default("none"),
+    /** 辨識失敗原因(給人看的訊息;成功時為 null) */
+    recognitionError: text("recognition_error"),
+    /** 辨識結果中需要人工特別核對的提示(core 的 normalizeRecognition 產出) */
+    recognitionWarnings: jsonb("recognition_warnings").$type<string[]>(),
     /** 憑證影像路徑;報帳憑證只增不刪 */
     imagePath: text("image_path"),
     /** 辨識原始資料(QR 原文或 AI 回傳 JSON),供追溯與除錯 */

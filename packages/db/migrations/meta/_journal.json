@@ -8,6 +8,13 @@
       "when": 1785214069421,
       "tag": "0000_parallel_lyja",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785747111653,
+      "tag": "0001_solid_justice",
+      "breakpoints": true
     }
   ]
 }

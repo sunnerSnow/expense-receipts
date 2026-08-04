@@ -1,15 +1,14 @@
 import PgBoss from "pg-boss";
+import { createDb } from "@expense-receipts/db";
+import { QUEUES, type RecognizeReceiptPayload } from "@expense-receipts/queue";
 import { env } from "./env";
-
-/** 佇列名稱:web 端 send、worker 端 work 都用這裡的常數,不得散落字串 */
-export const QUEUES = {
-  /** Phase 2:AI 辨識單據影像(payload: { receiptId: string }) */
-  recognizeReceipt: "receipt.recognize",
-  /** Phase 3:產生月結匯出檔(payload: { exportBatchId: string }) */
-  generateExport: "export.generate",
-} as const;
+import { markRecognitionFailed, recognizeReceiptJob } from "./jobs/recognize-receipt";
+import { createRecognizer } from "./recognizer";
 
 async function main() {
+  const db = createDb(env.DATABASE_URL);
+  const recognizer = createRecognizer();
+
   const boss = new PgBoss(env.DATABASE_URL);
   boss.on("error", (err) => console.error("[pg-boss]", err));
   await boss.start();
@@ -17,17 +16,44 @@ async function main() {
   await boss.createQueue(QUEUES.recognizeReceipt);
   await boss.createQueue(QUEUES.generateExport);
 
-  await boss.work(QUEUES.recognizeReceipt, async ([job]) => {
-    // Phase 2:讀取單據影像 → Claude API vision + structured outputs → 寫回 receipts(status 維持 pending_review)
-    console.log(`[${QUEUES.recognizeReceipt}] 收到 job`, job?.id, "(Phase 2 實作)");
-  });
+  await boss.work<RecognizeReceiptPayload>(
+    QUEUES.recognizeReceipt,
+    { includeMetadata: true },
+    async ([job]) => {
+      if (!job) return;
+      const outcome = await recognizeReceiptJob({ db, recognizer, payload: job.data });
+
+      switch (outcome.kind) {
+        case "done":
+          console.log(`[辨識] ${job.data.receiptId} 完成,待人工確認`);
+          return;
+        case "skipped":
+          console.log(`[辨識] ${job.data.receiptId} 略過:${outcome.reason}`);
+          return;
+        case "failed":
+          console.warn(`[辨識] ${job.data.receiptId} 失敗:${outcome.error}`);
+          return;
+        case "transient": {
+          const lastAttempt = job.retryCount >= job.retryLimit;
+          if (!lastAttempt) {
+            // 丟出去讓 pg-boss 依退避策略重試;單據維持 queued
+            throw new Error(outcome.error);
+          }
+          // 重試用盡:寫進 DB 讓使用者看得到,並可在明細頁手動重新辨識
+          console.error(`[辨識] ${job.data.receiptId} 重試用盡:${outcome.error}`);
+          await markRecognitionFailed(db, job.data.receiptId, `${outcome.error}(已重試 ${job.retryCount} 次)`);
+          return;
+        }
+      }
+    },
+  );
 
   await boss.work(QUEUES.generateExport, async ([job]) => {
     // Phase 3:撈該期間 confirmed 單據 → 產出 CSV/Excel + 影像打包 → 更新 export_batches 與單據狀態
     console.log(`[${QUEUES.generateExport}] 收到 job`, job?.id, "(Phase 3 實作)");
   });
 
-  console.log("worker 已啟動,等待任務中");
+  console.log(`worker 已啟動(辨識器:${recognizer.id}),等待任務中`);
 
   const shutdown = async () => {
     await boss.stop();

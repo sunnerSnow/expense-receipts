@@ -6,12 +6,15 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:ai": "tsx src/check-recognizer.ts"
   },
   "dependencies": {
     "@expense-receipts/config": "workspace:*",
     "@expense-receipts/core": "workspace:*",
     "@expense-receipts/db": "workspace:*",
+    "@expense-receipts/queue": "workspace:*",
+    "@google/genai": "^2.15.0",
     "drizzle-orm": "^0.44.2",
     "pg-boss": "^10.3.0"
   },

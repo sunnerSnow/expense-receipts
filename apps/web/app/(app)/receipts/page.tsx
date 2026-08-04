@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
 import { categories, receipts } from "@expense-receipts/db";
 import {
   amountToCents,
@@ -65,9 +65,65 @@ export default async function ReceiptsPage({
   const catNames = new Map<string, string>();
   for (const r of rows) if (r.categories) catNames.set(r.categories.id, r.categories.name);
 
+  /**
+   * 「待處理」不受月份篩選限制。
+   *
+   * 原因:AI 辨識中的單據還沒有日期(invoice_date 是 NULL),沒讀出日期的也一樣 ——
+   * 這些單據落在所有月份區間之外,只靠上面那張表會整批消失不見。
+   */
+  const attention = await getDb()
+    .select({
+      id: receipts.id,
+      recognitionStatus: receipts.recognitionStatus,
+      recognitionError: receipts.recognitionError,
+      invoiceDate: receipts.invoiceDate,
+      sellerName: receipts.sellerName,
+      amount: receipts.amount,
+    })
+    .from(receipts)
+    .where(
+      and(
+        eq(receipts.status, "pending_review"),
+        or(inArray(receipts.recognitionStatus, ["queued", "failed"]), isNull(receipts.invoiceDate)),
+      ),
+    )
+    .orderBy(desc(receipts.createdAt));
+
   return (
     <>
       <h1>單據列表</h1>
+
+      {attention.length > 0 ? (
+        <section
+          style={{
+            padding: "0.75rem 1rem",
+            background: "#fff8e1",
+            border: "1px solid #ecd08a",
+            borderRadius: 8,
+            marginBottom: "1rem",
+          }}
+        >
+          <strong>待處理({attention.length})</strong>
+          <p style={{ margin: "0.25rem 0 0.5rem", color: "#666", fontSize: "0.9rem" }}>
+            辨識中或缺日期的單據不屬於任何月份,列在這裡直到補齊資料並確認入帳。
+          </p>
+          <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+            {attention.map((a) => (
+              <li key={a.id}>
+                <Link href={`/receipts/${a.id}`}>
+                  {a.sellerName ?? "(未辨識)"}
+                  {a.invoiceDate ? `　${a.invoiceDate}` : ""}
+                </Link>
+                {a.recognitionStatus === "queued"
+                  ? "　🤖 辨識中…"
+                  : a.recognitionStatus === "failed"
+                    ? `　⚠️ 辨識失敗:${a.recognitionError ?? "原因未知"}`
+                    : "　⚠️ 缺日期"}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <form method="get" style={{ display: "flex", gap: "0.75rem", alignItems: "end", flexWrap: "wrap", marginBottom: "1rem" }}>
         <label style={{ display: "grid", gap: "0.25rem" }}>

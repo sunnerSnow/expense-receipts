@@ -19,5 +19,6 @@ ADR 把「為什麼這樣做」變成可追溯的制度。程式碼會告訴你�
 | 編號 | 標題 | 狀態 |
 |---|---|---|
 | [0001](0001-company-expense-scope.md) | 定位為公司報帳工具,放棄個人模式與財政部 API | Accepted |
-| [0002](0002-two-tier-recognition.md) | 兩層辨識:QR 優先,AI 補位,AI 結果必經人工確認 | Accepted |
+| [0002](0002-two-tier-recognition.md) | 兩層辨識:QR 優先,AI 補位,AI 結果必經人工確認 | Accepted(供應商部分由 0004 取代) |
 | [0003](0003-reuse-booking-crm-stack.md) | 沿用 booking-crm 技術棧與工程制度 | Accepted |
+| [0004](0004-gemini-recognition-adapter.md) | AI 辨識改用 Google Gemini,辨識層抽成可抽換 adapter | Accepted |

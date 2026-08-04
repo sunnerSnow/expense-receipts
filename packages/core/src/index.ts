@@ -11,11 +11,21 @@ export {
   RECEIPT_DOC_TYPES,
   RECEIPT_SOURCES,
   RECEIPT_STATUSES,
+  RECOGNITION_STATUSES,
   type Deductibility,
   type ReceiptDocType,
   type ReceiptSource,
   type ReceiptStatus,
+  type RecognitionStatus,
 } from "./receipt";
+export {
+  buildRecognitionJsonSchema,
+  buildRecognitionPrompt,
+  normalizeRecognition,
+  type NormalizedRecognition,
+  type RawRecognition,
+  type RecognitionResult,
+} from "./recognition";
 export { DEFAULT_CATEGORIES, type CategorySeed } from "./categories";
 export { amountToCents, formatCents, isValidAmount } from "./money";
 export {

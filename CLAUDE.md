@@ -7,13 +7,16 @@
 ```
 apps/web        Next.js 15 PWA:頁面 + route handlers(只做 IO 與組裝)
 apps/worker     pg-boss:AI 辨識(Phase 2)、匯出產生(Phase 3)
-packages/core   業務邏輯(純函式,禁止 import 任何 IO)—— QR 解析、扣抵判斷、狀態機
+                src/recognizer/ 是辨識供應商的 adapter(目前 Gemini,見 ADR-0004)
+packages/core   業務邏輯(純函式,禁止 import 任何 IO)—— QR 解析、扣抵判斷、
+                狀態機、AI 辨識的提示詞/輸出 schema/結果驗證
 packages/db     Drizzle schema + migrations + seed
-packages/config zod 環境變數驗證(parseEnv)—— 各 app 定義自己的 env schema
+packages/config zod 環境變數驗證(parseEnv)+ 路徑解析(resolveFromRepoRoot)
+packages/queue  佇列名稱與 payload 型別(web send / worker work 共用契約)
 ```
 
-依賴方向:apps → core / db / config。core 不依賴任何東西;db 與 core 互不依賴
-(共用 enum 手動同步,見 conventions 第 4 節)。
+依賴方向:apps → core / db / config / queue。core 不依賴任何東西;db 與 core
+互不依賴(共用 enum 手動同步,見 conventions 第 4 節)。apps 之間不得互相 import。
 
 ## 鐵律(違反 = 資料正確性或憑證合規事故,任何情況不可違反)
 
@@ -21,7 +24,8 @@ packages/config zod 環境變數驗證(parseEnv)—— 各 app 定義自己的 e
 2. 單據狀態一律走 core 的 `canTransitionStatus()`;`pending_review → confirmed → exported`
    單向不可回頭,禁止直接 `UPDATE receipts.status` 跳關
 3. AI 辨識(source='ai')的單據一律落在 `pending_review`,不得直接 confirmed;
-   QR 解析(source='qr')可直接 confirmed
+   QR 解析(source='qr')可直接 confirmed。辨識工作狀態走 `recognition_status`
+   欄位,與 `status` 狀態機分離 —— worker 回填欄位時不得碰 `status`
 4. `receipts_invoice_number_unique` 部分唯一索引(發票號碼去重)不可移除
 5. 已匯出(exported)的單據不可修改、不可刪除;`export_batches` 只允許 INSERT
 6. 單據影像是報帳憑證:只增不刪,刪除單據紀錄也要保留影像檔

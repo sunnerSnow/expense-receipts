@@ -25,6 +25,16 @@ export type ReceiptSource = (typeof RECEIPT_SOURCES)[number];
 export const RECEIPT_STATUSES = ["pending_review", "confirmed", "exported"] as const;
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 
+/**
+ * AI 辨識工作的生命週期(只對 source='ai' 的單據有意義)。
+ * - none:不走 AI(QR 或手動輸入)
+ * - queued:已派工,worker 還沒處理完 —— 此時單據欄位是空殼,不可確認入帳
+ * - succeeded:辨識完成,欄位已填,等人工確認
+ * - failed:辨識失敗(讀不出金額、API 錯誤、發票號碼撞去重),需人工接手
+ */
+export const RECOGNITION_STATUSES = ["none", "queued", "succeeded", "failed"] as const;
+export type RecognitionStatus = (typeof RECOGNITION_STATUSES)[number];
+
 /** 進項稅額可扣抵判定結果 */
 export type Deductibility = "deductible" | "expense_only" | "review";
 

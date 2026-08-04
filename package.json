@@ -3,16 +3,24 @@
   "private": true,
   "packageManager": "pnpm@10.24.0",
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "sharp"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
   },
   "scripts": {
-    "dev": "pnpm --filter @expense-receipts/web dev",
-    "worker": "pnpm --filter @expense-receipts/worker dev",
+    "dev": "dotenv -e .env -- pnpm --filter @expense-receipts/web dev",
+    "worker": "dotenv -e .env -- pnpm --filter @expense-receipts/worker dev",
+    "check:ai": "dotenv -e .env -- pnpm --filter @expense-receipts/worker check:ai",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "db:generate": "pnpm --filter @expense-receipts/db generate",
-    "db:migrate": "pnpm --filter @expense-receipts/db migrate",
-    "db:studio": "pnpm --filter @expense-receipts/db studio"
+    "db:generate": "dotenv -e .env -- pnpm --filter @expense-receipts/db generate",
+    "db:migrate": "dotenv -e .env -- pnpm --filter @expense-receipts/db migrate",
+    "db:seed": "dotenv -e .env -- pnpm --filter @expense-receipts/db seed",
+    "db:studio": "dotenv -e .env -- pnpm --filter @expense-receipts/db studio"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0"
   }
 }

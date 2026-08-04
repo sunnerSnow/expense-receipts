@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type {
   Deductibility,
   ReceiptDocType,
   ReceiptSource,
   ReceiptStatus,
+  RecognitionStatus,
 } from "@expense-receipts/core";
 import {
   DEDUCTIBILITY_LABELS,
@@ -17,6 +19,7 @@ import {
 import {
   confirmReceipt,
   deleteReceipt,
+  retryRecognition,
   updateReceipt,
   type ActionState,
 } from "../actions";
@@ -40,6 +43,9 @@ export type ReceiptView = {
   categoryId: string | null;
   note: string | null;
   hasImage: boolean;
+  recognitionStatus: RecognitionStatus;
+  recognitionError: string | null;
+  recognitionWarnings: string[] | null;
 };
 
 const inputStyle = { padding: "0.5rem", fontSize: "1rem", width: "100%" } as const;
@@ -53,8 +59,19 @@ export function ReceiptDetail({ receipt, categories }: { receipt: ReceiptView; c
   const [editState, editAction, editing] = useActionState(updateReceipt, {} as ActionState);
   const [confirmState, confirmAction, confirming] = useActionState(confirmReceipt, {} as ActionState);
   const [deleteState, deleteAction, deleting] = useActionState(deleteReceipt, {} as ActionState);
+  const [retryState, retryAction, retrying] = useActionState(retryRecognition, {} as ActionState);
+  const router = useRouter();
 
-  const readOnly = receipt.status === "exported";
+  const recognizing = receipt.recognitionStatus === "queued";
+  const readOnly = receipt.status === "exported" || recognizing;
+  const warnings = receipt.recognitionWarnings ?? [];
+
+  // 辨識中的單據自己輪詢:worker 寫回資料庫不會通知瀏覽器,不然使用者得手動重整
+  useEffect(() => {
+    if (!recognizing) return;
+    const timer = setInterval(() => router.refresh(), 3000);
+    return () => clearInterval(timer);
+  }, [recognizing, router]);
 
   return (
     <>
@@ -67,6 +84,31 @@ export function ReceiptDetail({ receipt, categories }: { receipt: ReceiptView; c
         {receipt.deductibility ? `　${DEDUCTIBILITY_LABELS[receipt.deductibility]}` : ""}
       </p>
 
+      {recognizing ? (
+        <p style={{ padding: "0.75rem", background: "#eef5ff", border: "1px solid #b9d3f5", borderRadius: 8 }}>
+          🤖 AI 辨識中…(自動更新,不用重整)
+        </p>
+      ) : null}
+
+      {receipt.recognitionStatus === "failed" && receipt.recognitionError ? (
+        <div style={{ padding: "0.75rem", background: "#fdecea", border: "1px solid #f5c2bd", borderRadius: 8 }}>
+          <strong>辨識失敗:</strong>
+          {receipt.recognitionError}
+          <p style={{ margin: "0.5rem 0 0", color: "#666" }}>可以直接在下面手動填寫,或重新辨識一次。</p>
+        </div>
+      ) : null}
+
+      {warnings.length > 0 ? (
+        <div style={{ padding: "0.75rem", background: "#fff8e1", border: "1px solid #ecd08a", borderRadius: 8 }}>
+          <strong>AI 辨識結果請核對這幾點:</strong>
+          <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.25rem" }}>
+            {warnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {receipt.hasImage ? (
         <img
           src={`/receipts/${receipt.id}/image`}
@@ -76,7 +118,9 @@ export function ReceiptDetail({ receipt, categories }: { receipt: ReceiptView; c
       ) : null}
 
       {readOnly ? (
-        <p style={{ color: "#b8860b" }}>此單據已匯出,鎖定不可修改。</p>
+        <p style={{ color: "#b8860b" }}>
+          {recognizing ? "辨識完成後才能編輯欄位(避免 AI 回填時蓋掉你的輸入)。" : "此單據已匯出,鎖定不可修改。"}
+        </p>
       ) : (
         <form action={editAction}>
           <input type="hidden" name="id" value={receipt.id} />
@@ -145,7 +189,17 @@ export function ReceiptDetail({ receipt, categories }: { receipt: ReceiptView; c
       )}
 
       <div style={{ display: "flex", gap: "1rem", marginTop: "1.5rem", flexWrap: "wrap" }}>
-        {receipt.status === "pending_review" ? (
+        {receipt.source === "ai" && receipt.status === "pending_review" && !recognizing ? (
+          <form action={retryAction}>
+            <input type="hidden" name="id" value={receipt.id} />
+            <button type="submit" disabled={retrying} style={{ padding: "0.5rem 1rem" }}>
+              {retrying ? "派送中…" : "重新辨識"}
+            </button>
+            {retryState.error ? <span style={{ color: "#c0392b", marginLeft: "0.5rem" }}>{retryState.error}</span> : null}
+          </form>
+        ) : null}
+
+        {receipt.status === "pending_review" && !recognizing ? (
           <form action={confirmAction}>
             <input type="hidden" name="id" value={receipt.id} />
             <button type="submit" disabled={confirming} style={{ padding: "0.5rem 1rem" }}>

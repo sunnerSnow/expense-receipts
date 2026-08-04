@@ -27,13 +27,16 @@ users ──< receipts >── categories
 |---|---|
 | `context` | company / personal —— 個人模式的門,目前一律 company |
 | `doc_type` | einvoice / triplicate / duplicate / cash_register / receipt / foreign / other |
-| `source` | qr(QR 解析)/ ai(Claude 辨識)/ manual(手動 key) |
+| `source` | qr(QR 解析)/ ai(雲端 vision 辨識)/ manual(手動 key) |
 | `status` | pending_review → confirmed → exported(單向) |
 | `invoice_number` | 發票號碼;部分唯一索引做去重(NULL 不受限,收據可無號碼) |
 | `amount` / `tax_amount` | 含稅總額 / 稅額,numeric(12,2);國外單據存原幣 + currency |
 | `deductibility` | deductible / expense_only / review,由 core 的 assessDeductibility 判定 |
 | `image_path` | 憑證影像;只增不刪 |
-| `raw_data` | 辨識原始資料(QR 原文或 AI 回傳 JSON),追溯用 |
+| `raw_data` | 辨識原始資料(QR 原文,或 AI 的供應商/模型/token 用量/回傳 JSON),追溯用 |
+| `recognition_status` | none / queued / succeeded / failed —— AI 工作生命週期,與 `status` 分離 |
+| `recognition_error` | 辨識失敗原因(給人看的訊息) |
+| `recognition_warnings` | 需人工核對的提示清單,由 core 的 `normalizeRecognition` 產出 |
 
 ### export_batches
 
@@ -49,7 +52,24 @@ pending_review ──確認──▶ confirmed ──月結匯出──▶ expor
 - 轉換規則的唯一出口:`packages/core` 的 `canTransitionStatus()`
 - source='qr' 建立時直接 confirmed(QR 資料 100% 準確)
 - source='manual' 建立時直接 confirmed(上傳者當場輸入即已核對,自用免二次確認)
-- source='ai'(Phase 2)一律從 pending_review 開始,必經人工確認才 confirmed
+- source='ai' 一律從 pending_review 開始,必經人工確認才 confirmed
+
+### AI 辨識流程(source='ai')
+
+`status` 與 `recognition_status` 是兩條獨立的軸:前者是帳務生命週期,後者是辨識
+工作的進度。worker 只寫後者與欄位內容,永遠不碰前者。
+
+```
+上傳(web)  影像落地 + 建空殼單據(amount=0、invoice_date=NULL)
+            status=pending_review、recognition_status=queued  ──send──▶ pg-boss
+worker      讀影像 → Gemini → core normalizeRecognition
+            成功:回填欄位 + recognition_status=succeeded(+ warnings)
+            失敗:recognition_status=failed + recognition_error
+人工        核對 warning 清單 → 修正 → 確認入帳(confirmed)
+```
+
+確認入帳的前置條件(`confirmReceipt`):非 queued、有日期、金額不為 0 ——
+缺日期的單據會落在所有月份區間之外,連月結都撈不到,不可入帳。
 
 ## 不變量(依執行強度排序,見 engineering-playbook 第二節)
 
@@ -60,3 +80,5 @@ pending_review ──確認──▶ confirmed ──月結匯出──▶ expor
 | exported 單據不可改 | core 檢查(Phase 3 實作時加 DB trigger 評估) |
 | 分類/來源/狀態值合法 | Drizzle text enum + TypeScript 型別 |
 | 影像只增不刪 | 慣例(conventions 第 5 節)—— 刪除 API 不碰檔案 |
+| AI 結果不會直接入帳 | worker 的更新語句從不寫 `status`;確認動作另有前置檢查 |
+| 辨識中的單據不被人工覆寫 | server action 檢查 `recognition_status='queued'` 就拒絕編輯/確認 |

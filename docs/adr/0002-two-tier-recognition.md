@@ -1,7 +1,10 @@
 # 0002. 兩層辨識:QR 優先,AI 補位,AI 結果必經人工確認
 
-- 狀態:Accepted
+- 狀態:Accepted(供應商選擇部分已由 [ADR-0004](0004-gemini-recognition-adapter.md) 取代)
 - 日期:2026-07-28
+
+> 兩層策略與「AI 必經人工確認」的判斷仍然有效。下文提到的 Claude API 已改為
+> Google Gemini,並抽成可抽換的 adapter —— 見 ADR-0004。
 
 ## Context(當時的情境)
 
@@ -17,8 +20,8 @@
 
 1. 客戶端先跑 jsQR 解碼,解到電子發票 QR → `parseEInvoiceQr`(packages/core)
    結構化入帳,**直接 confirmed**
-2. 解不到 → 上傳影像,worker 用 Claude API vision + structured outputs 辨識,
-   **一律落在 pending_review**,人工確認金額後才 confirmed
+2. 解不到 → 上傳影像,worker 用雲端 vision 模型 + structured outputs 辨識
+   (供應商見 ADR-0004),**一律落在 pending_review**,人工確認金額後才 confirmed
 
 狀態機 `pending_review → confirmed → exported` 單向,轉換規則唯一出口在 core。
 

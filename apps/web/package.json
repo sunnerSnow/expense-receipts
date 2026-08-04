@@ -12,9 +12,11 @@
     "@expense-receipts/config": "workspace:*",
     "@expense-receipts/core": "workspace:*",
     "@expense-receipts/db": "workspace:*",
+    "@expense-receipts/queue": "workspace:*",
     "drizzle-orm": "^0.44.2",
     "jsqr": "^1.4.0",
     "next": "^15.3.0",
+    "pg-boss": "^10.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "server-only": "^0.0.1"

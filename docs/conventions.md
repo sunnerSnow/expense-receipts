@@ -7,13 +7,31 @@ ADR 記歷史,這裡記「現在怎麼寫」。慣例成形時更新。
 - 業務邏輯(判斷、轉換、計算)寫在 `packages/core`,一律純函式 + 單元測試
 - `apps/web` 的 route handler / server action 只做:取資料 → 呼叫 core → 寫資料
 - `apps/worker` 同理:收 job → 取資料 → 呼叫 core(與外部 API)→ 寫資料
-- 佇列名稱只用 `apps/worker/src/index.ts` 的 `QUEUES` 常數,不散落字串
+- 佇列名稱與 payload 型別只用 `@expense-receipts/queue`(web send / worker work
+  共用同一份契約;apps 之間不得互相 import)
+
+## 1b. 外部 AI 供應商
+
+- 供應商呼叫封在 `apps/worker/src/recognizer/`,實作 `ReceiptRecognizer` 介面;
+  換供應商只改 `createRecognizer()`(見 ADR-0004)
+- 提示詞、輸出 JSON Schema、回傳驗證一律在 `packages/core`(純函式 + 測試),
+  不寫在 adapter 裡 —— 換供應商不該讓台灣單據的驗證規則跟著重寫
+- 供應商錯誤只往外傳 `error.message`,不整包拋出(避免金鑰/影像進 log)
+- 可重試(限流、逾時、5xx)與確定性失敗要分開:前者丟
+  `TransientRecognitionError` 交給 pg-boss 退避重試,後者直接寫
+  `recognition_status='failed'` 交人工
 
 ## 2. 環境變數
 
 - 禁止裸 `process.env.X`;一律經 `@expense-receipts/config` 的 `parseEnv`
 - 各 app 定義自己的 env schema(web 在 `lib/env.ts`、worker 在 `src/env.ts`)
 - 新增變數時同步更新 `.env.example`(含註解說明用途與哪個 Phase 需要)
+- `.env` 只有 monorepo 根目錄一份;root 的 npm scripts 用 `dotenv -e .env --`
+  注入(pnpm --filter 會把 cwd 換成 package 目錄,Next/tsx 不會自己往上找)
+- 路徑類變數(如 `UPLOAD_DIR`)用 `resolveFromRepoRoot()` 解析:web 與 worker
+  的 cwd 不同,相對路徑會指到不同資料夾
+- 不要用 `z.string().default(...)`:在目前的 zod 版本經 `parseEnv` 後型別會變成
+  `string | undefined`。要預設值就寫進 `.env.example`,schema 保持必填(fail fast)
 
 ## 3. 資料庫變更四步
 
@@ -29,6 +47,7 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
 
 - 唯一真相源:`packages/core/src/receipt.ts` 的 const 陣列
 - 改值時必須同步改 `packages/db/src/schema/index.ts` 對應欄位的 enum,並出 migration
+- 同樣規則適用 `recognition_status`(`RECOGNITION_STATUSES`)
 
 ## 5. 單據影像
 

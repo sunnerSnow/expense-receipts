@@ -42,6 +42,9 @@ export default async function ReceiptDetailPage({
         categoryId: rec.categoryId,
         note: rec.note,
         hasImage: rec.imagePath !== null,
+        recognitionStatus: rec.recognitionStatus,
+        recognitionError: rec.recognitionError,
+        recognitionWarnings: rec.recognitionWarnings ?? null,
       }}
     />
   );

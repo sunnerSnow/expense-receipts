@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export { z };
+export { resolveFromRepoRoot } from "./paths";
 
 /**
  * 環境變數的「快速失敗」驗證(取代裸 process.env.X)。

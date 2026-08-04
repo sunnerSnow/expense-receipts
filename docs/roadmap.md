@@ -29,15 +29,29 @@
 - QR 一次只解一顆條碼(左條碼,含所有帳務欄位);右條碼的接續品項未處理
 - 使用者建立目前只能靠 db seed 或 SQL,尚無使用者管理 UI
 
-## Phase 2 — AI 辨識
+## Phase 2 — AI 辨識 ✅(2026-08-03)
 
 目標:非電子發票的單據不用手 key。
 
-- worker 接 `receipt.recognize` 佇列:影像 → Claude API vision + structured outputs
-  (擷取:日期、賣方名稱/統編、買方統編、金額、稅額、幣別、發票號碼、分類建議)
-- 統編比對:`assessDeductibility` 寫入 deductibility 欄位
-- 待確認佇列 UI:辨識結果 + 原圖並排,一鍵確認/修正
-- 辨識失敗/低信心 fallback 到手動 key
+- ✅ worker 接 `receipt.recognize` 佇列:影像 → Gemini vision + structured output
+  (擷取:日期、賣方名稱/統編、買方統編、金額、稅額、幣別、發票號碼、分類建議、摘要)
+- ✅ 辨識供應商抽成 adapter(`apps/worker/src/recognizer/`),見 ADR-0004
+- ✅ 提示詞/輸出 schema/結果驗證在 core:`buildRecognitionPrompt`、
+  `buildRecognitionJsonSchema`、`normalizeRecognition`(29 則測試)
+- ✅ 台灣單據的正規化規則:民國年轉西元、千分位與貨幣符號、8 碼統編、
+  發票號碼格式、5% 營業稅比例交叉檢查
+- ✅ 統編比對:`assessDeductibility` 寫入 deductibility 欄位
+- ✅ 待確認流程:AI 單據一律 pending_review;明細頁顯示原圖 + 辨識結果 +
+  「請核對這幾點」warning 清單,可修正後確認入帳
+- ✅ 辨識中自動輪詢更新;失敗顯示原因,可「重新辨識」或改手動填寫
+- ✅ 限流退避重試(pg-boss retryLimit 3、指數退避),重試用盡才標記失敗
+- ✅ 去重:辨識出的發票號碼撞到唯一索引時標記失敗並提示可能重複上傳
+
+**Phase 2 已知限制**:
+- 一次辨識一張影像;多張單據拍在同一張照片不會拆開
+- 品項明細未擷取(報帳只需要總額與稅額;QR 的品項也還沒入庫)
+- 沒有信心分數:改以「warning 清單 + 必經人工確認」代替,模型自評分數不可靠
+- 辨識中的單據不出現在月份列表(還沒有日期),改列在列表頁「待處理」區塊
 
 ## Phase 3 — 月結匯出
 
