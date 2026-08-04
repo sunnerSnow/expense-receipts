@@ -296,9 +296,14 @@ export function normalizeRecognition(
     warnings.push(`稅額格式不正確(「${taxAmountRaw}」),已略去`);
   }
   if (taxAmount !== null && UNIFORM_INVOICE_TYPES.includes(docType)) {
-    // 台灣營業稅 5%:含稅總額 ≈ 稅額 × 21。差太多代表其中一個讀錯了
-    const expected = Number(taxAmount) * 21;
-    if (expected > 0 && Math.abs(expected - Number(amount)) > 1.5) {
+    // 台灣營業稅 5%:未稅額 = 含稅總額 − 稅額,稅額應約等於未稅額 × 5%。
+    //
+    // 不要反推「含稅 ≈ 稅額 × 21」—— 發票上的稅額是進位到整數的,那個誤差
+    // 乘 21 倍後可達 ±10 元,會讓正常發票(如 1050 + 53 = 1103)被誤判。
+    const net = Number(amount) - Number(taxAmount);
+    if (net <= 0) {
+      warnings.push(`稅額 ${taxAmount} 不小於總額 ${amount},其中一個應該讀錯了,請核對`);
+    } else if (Math.abs(net * 0.05 - Number(taxAmount)) > 1) {
       warnings.push(`金額 ${amount} 與稅額 ${taxAmount} 不符 5% 營業稅比例,請核對`);
     }
   }

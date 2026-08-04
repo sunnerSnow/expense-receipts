@@ -21,29 +21,36 @@ async function main() {
     { includeMetadata: true },
     async ([job]) => {
       if (!job) return;
-      const outcome = await recognizeReceiptJob({ db, recognizer, payload: job.data });
+      const { receiptId } = job.data;
+      const lastAttempt = job.retryCount >= job.retryLimit;
 
-      switch (outcome.kind) {
-        case "done":
-          console.log(`[辨識] ${job.data.receiptId} 完成,待人工確認`);
-          return;
-        case "skipped":
-          console.log(`[辨識] ${job.data.receiptId} 略過:${outcome.reason}`);
-          return;
-        case "failed":
-          console.warn(`[辨識] ${job.data.receiptId} 失敗:${outcome.error}`);
-          return;
-        case "transient": {
-          const lastAttempt = job.retryCount >= job.retryLimit;
-          if (!lastAttempt) {
-            // 丟出去讓 pg-boss 依退避策略重試;單據維持 queued
-            throw new Error(outcome.error);
-          }
-          // 重試用盡:寫進 DB 讓使用者看得到,並可在明細頁手動重新辨識
-          console.error(`[辨識] ${job.data.receiptId} 重試用盡:${outcome.error}`);
-          await markRecognitionFailed(db, job.data.receiptId, `${outcome.error}(已重試 ${job.retryCount} 次)`);
-          return;
+      try {
+        const outcome = await recognizeReceiptJob({ db, recognizer, payload: job.data });
+
+        switch (outcome.kind) {
+          case "done":
+            console.log(`[辨識] ${receiptId} 完成,待人工確認`);
+            return;
+          case "skipped":
+            console.log(`[辨識] ${receiptId} 略過:${outcome.reason}`);
+            return;
+          case "failed":
+            console.warn(`[辨識] ${receiptId} 失敗:${outcome.error}`);
+            return;
+          case "transient":
+            // 還有重試機會就交回 pg-boss 退避重試(單據維持 queued)
+            if (!lastAttempt) throw new Error(outcome.error);
+            console.error(`[辨識] ${receiptId} 重試用盡:${outcome.error}`);
+            await markRecognitionFailed(db, receiptId, `${outcome.error}(已重試 ${job.retryCount} 次)`);
+            return;
         }
+      } catch (err) {
+        // 非預期的例外(DB 約束、程式錯誤…):重試用盡後一定要寫回 DB,
+        // 否則單據會永遠停在「辨識中」,使用者看不到任何原因也無法處理。
+        if (!lastAttempt) throw err;
+        const message = (err as Error)?.message ?? "未知錯誤";
+        console.error(`[辨識] ${receiptId} 未預期錯誤(重試用盡):${message}`);
+        await markRecognitionFailed(db, receiptId, `辨識時發生未預期錯誤:${message}`);
       }
     },
   );

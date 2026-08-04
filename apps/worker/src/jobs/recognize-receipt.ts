@@ -24,8 +24,25 @@ const MIME_BY_EXT: Record<string, string> = {
 /** PostgreSQL unique_violation */
 const PG_UNIQUE_VIOLATION = "23505";
 
+/**
+ * 沿著 cause 鏈找 PostgreSQL 錯誤代碼。
+ *
+ * 必要性:Drizzle 會把 pg 的原始錯誤包一層(`DrizzleQueryError.cause`),
+ * 只看 `err.code` 抓不到 —— 結果去重衝突會變成未處理的例外、被 pg-boss
+ * 當成暫時性錯誤反覆重試,單據永遠停在「辨識中」。
+ */
+function pgErrorCode(err: unknown): string | undefined {
+  let cursor: unknown = err;
+  for (let depth = 0; depth < 5 && cursor !== null && typeof cursor === "object"; depth += 1) {
+    const code = (cursor as { code?: unknown }).code;
+    if (typeof code === "string") return code;
+    cursor = (cursor as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
 function isUniqueViolation(err: unknown): boolean {
-  return (err as { code?: string })?.code === PG_UNIQUE_VIOLATION;
+  return pgErrorCode(err) === PG_UNIQUE_VIOLATION;
 }
 
 /** 辨識工作的處理結果,供呼叫端決定要不要交回 pg-boss 重試 */

@@ -150,15 +150,27 @@ describe("normalizeRecognition — 發票號碼", () => {
 });
 
 describe("normalizeRecognition — 稅額比例檢查", () => {
-  it("含稅總額 ≈ 稅額 × 21 時不警告", () => {
+  it("稅額約為未稅額的 5% 時不警告", () => {
     expect(ok(raw({ amount: "1050", taxAmount: "50" })).warnings).toEqual([]);
-    // 四捨五入造成的 1 元內誤差要容忍
     expect(ok(raw({ amount: "1049", taxAmount: "50" })).warnings).toEqual([]);
+  });
+
+  it("發票稅額進位不算異常(1050 未稅 → 稅 53、總計 1103)", () => {
+    // 1050 × 5% = 52.5,發票上進位成 53,總計 1103。
+    // 若用「含稅 ≈ 稅額 × 21」反推會算出 1113、誤判 10 元誤差。
+    expect(ok(raw({ amount: "1103", taxAmount: "53" })).warnings).toEqual([]);
+    expect(ok(raw({ amount: "1102", taxAmount: "52" })).warnings).toEqual([]);
+    expect(ok(raw({ amount: "21", taxAmount: "1" })).warnings).toEqual([]);
   });
 
   it("比例明顯不符就警告(可能其中一個讀錯)", () => {
     const v = ok(raw({ amount: "1050", taxAmount: "500" }));
     expect(v.warnings.some((w) => w.includes("不符 5% 營業稅比例"))).toBe(true);
+  });
+
+  it("稅額不小於總額必定是讀錯", () => {
+    const v = ok(raw({ amount: "50", taxAmount: "50" }));
+    expect(v.warnings.some((w) => w.includes("不小於總額"))).toBe(true);
   });
 
   it("非統一發票不做比例檢查(收據沒有稅額結構)", () => {
