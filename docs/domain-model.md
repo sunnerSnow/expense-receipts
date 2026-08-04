@@ -40,8 +40,19 @@ users ──< receipts >── categories
 
 ### export_batches
 
-一次月結匯出一列(期間 + 產出檔路徑)。只允許 INSERT。
-被匯出的單據回填 `export_batch_id` 並轉 exported。
+一次月結匯出一列。**只允許 INSERT**(鐵律 5)—— 因此流程是「先產檔 → 再插入帶
+路徑的批次紀錄」,不是「先建空批次 → 事後 UPDATE 補路徑」。
+
+| 欄位 | 意義 |
+|---|---|
+| `period_year` / `period_month` | 匯出的月份 |
+| `file_path` | CSV 清單路徑 |
+| `image_zip_path` | 憑證影像 zip 路徑(該批完全沒有影像時為 NULL) |
+| `receipt_count` | 這批單據筆數 |
+| `currency_totals` | 各幣別小計,如 `{"TWD":"1373.00","THB":"547.00"}`;不換算 |
+
+被匯出的單據回填 `export_batch_id` 並轉 exported。批次 INSERT 與單據狀態轉換
+在**同一交易**內,不會出現「單據已匯出但查不到批次」或反之。
 
 ## 狀態機
 
@@ -96,3 +107,5 @@ worker      讀影像 → Gemini → core normalizeRecognition
 | AI 結果不會直接入帳 | worker 的更新語句從不寫 `status`;確認動作另有前置檢查 |
 | 外幣金額不被當台幣加總 | core `summarizeReceipts()` 依 currency 分組;台幣總額不含外幣 |
 | 辨識中的單據不被人工覆寫 | server action 檢查 `recognition_status='queued'` 就拒絕編輯/確認 |
+| 單據不被重複匯出 | 撈取條件 `status='confirmed' AND export_batch_id IS NULL` + 交易內再以 status 為條件更新 |
+| 匯出批次與單據狀態一致 | 兩者同一交易;更新筆數不符即回滾整批 |

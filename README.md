@@ -43,7 +43,7 @@ pnpm db:studio    # Drizzle Studio 瀏覽資料
 ## 架構
 
 ```
-apps/web          Next.js 15 PWA:拍照上傳、QR 解析(客戶端)、待確認、分類、報表
+apps/web          Next.js 15 PWA:拍照上傳、QR 解析(客戶端)、待確認、分類、報表、月結匯出
 apps/worker       pg-boss:AI 辨識(src/recognizer 是供應商 adapter)、匯出檔產生(Phase 3)
 packages/core     業務邏輯(純函式,禁止 IO):QR 解析、扣抵判斷、狀態機、
                   AI 辨識的提示詞/輸出 schema/結果驗證、預設分類
@@ -63,7 +63,7 @@ packages/queue    佇列名稱與 payload 型別(web 與 worker 的共用契約)
           └─ 解不到 ──▶ 上傳影像 ──▶ pg-boss ──▶ worker 送 Gemini 辨識
                                         └──▶ 待確認(pending_review)+ 核對提示
                                                  ──人工核對──▶ confirmed
-月結 ──▶ 選期間 ──▶ 匯出 CSV/Excel + 影像打包(Phase 3)──▶ 單據標記 exported(終態)
+月結 ──▶ 選月份 ──▶ worker 產 CSV 清單 + 憑證影像 zip ──▶ 單據標記 exported(終態)
 ```
 
 單據狀態機:`pending_review → confirmed → exported`,單向不可回頭。
@@ -73,7 +73,7 @@ packages/queue    佇列名稱與 payload 型別(web 與 worker 的共用契約)
 - **Phase 0 — 骨架** ✅:monorepo、schema、QR 解析器、制度文件
 - **Phase 1 — 可日常使用** ✅:拍照上傳、QR 解析入帳、手動分類、單據列表與月統計
 - **Phase 2 — AI 辨識** ✅:Gemini 辨識非電子發票單據、統編比對、分類建議、待確認流程
-- **Phase 3 — 月結匯出**:CSV/Excel + 影像打包、匯出批次鎖定
+- **Phase 3 — 月結匯出** ✅:CSV 清單 + 影像 zip、各幣別小計、匯出批次鎖定
 - **擱置**:個人記帳模式、載具同步(財政部 API 僅限公司申請,已決定不走)、簽核流程
 
 完整版見 [docs/roadmap.md](docs/roadmap.md)。

@@ -1,7 +1,12 @@
 import PgBoss from "pg-boss";
 import { createDb } from "@expense-receipts/db";
-import { QUEUES, type RecognizeReceiptPayload } from "@expense-receipts/queue";
+import {
+  QUEUES,
+  type GenerateExportPayload,
+  type RecognizeReceiptPayload,
+} from "@expense-receipts/queue";
 import { env } from "./env";
+import { generateExportJob } from "./jobs/generate-export";
 import { markRecognitionFailed, recognizeReceiptJob } from "./jobs/recognize-receipt";
 import { createRecognizer } from "./recognizer";
 
@@ -55,9 +60,26 @@ async function main() {
     },
   );
 
-  await boss.work(QUEUES.generateExport, async ([job]) => {
-    // Phase 3:撈該期間 confirmed 單據 → 產出 CSV/Excel + 影像打包 → 更新 export_batches 與單據狀態
-    console.log(`[${QUEUES.generateExport}] 收到 job`, job?.id, "(Phase 3 實作)");
+  await boss.work<GenerateExportPayload>(QUEUES.generateExport, async ([job]) => {
+    if (!job) return;
+    const { periodYear, periodMonth } = job.data;
+    const period = `${periodYear}-${String(periodMonth).padStart(2, "0")}`;
+
+    const outcome = await generateExportJob({ db, payload: job.data });
+    switch (outcome.kind) {
+      case "done":
+        console.log(
+          `[匯出] ${period} 完成:${outcome.count} 筆 → ${outcome.csvPath}` +
+            (outcome.zipPath ? ` + ${outcome.zipPath}` : "(無影像,未產 zip)"),
+        );
+        return;
+      case "empty":
+        console.log(`[匯出] ${period} 沒有可匯出的單據(需為已確認且未匯出)`);
+        return;
+      case "conflict":
+        // 丟出去讓 pg-boss 記錄失敗;狀態衝突重跑通常就好了
+        throw new Error(outcome.message);
+    }
   });
 
   console.log(`worker 已啟動(辨識器:${recognizer.id}),等待任務中`);

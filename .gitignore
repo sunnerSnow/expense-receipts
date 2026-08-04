@@ -19,3 +19,4 @@ next-env.d.ts
 
 # 單據影像(報帳憑證,只存本機/物件儲存,不進 git)
 uploads/
+exports/

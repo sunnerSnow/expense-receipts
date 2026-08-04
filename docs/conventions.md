@@ -49,11 +49,20 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
 - 改值時必須同步改 `packages/db/src/schema/index.ts` 對應欄位的 enum,並出 migration
 - 同樣規則適用 `recognition_status`(`RECOGNITION_STATUSES`)
 
+## 4b. 不可逆操作
+
+- 會把資料推進終態的操作(目前只有月結匯出)一律走 worker + 資料庫交易,
+  不在 server action 裡邊做邊回應
+- 產出檔案先寫入磁碟,成功後才 INSERT 紀錄 —— 讓「紀錄存在」等於「檔案存在」
+- 對外提供檔案下載時,路徑一律取自 DB 並驗證落在設定的目錄內(防路徑逃逸)
+- UI 上要明確寫出「此操作不可逆」與影響筆數
+
 ## 5. 單據影像
 
 - 存 `UPLOAD_DIR`(預設 `./uploads`,已 gitignore),檔名用 receipt id
 - 影像是報帳憑證:任何刪除操作只刪資料列,不刪檔案
 - 影像不進 git、不進 log
+- 月結匯出產出物存 `EXPORT_DIR`(已 gitignore),路徑記在 `export_batches`
 
 ## 6. 金額
 

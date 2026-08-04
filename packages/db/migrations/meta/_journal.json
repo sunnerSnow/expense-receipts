@@ -15,6 +15,13 @@
       "when": 1785747111653,
       "tag": "0001_solid_justice",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785822825091,
+      "tag": "0002_omniscient_the_executioner",
+      "breakpoints": true
     }
   ]
 }

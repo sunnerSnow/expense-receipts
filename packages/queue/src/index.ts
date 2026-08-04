@@ -31,6 +31,16 @@ export interface RecognizeReceiptPayload {
   receiptId: string;
 }
 
+/**
+ * 匯出工作的 payload 帶「期間 + 誰發起」,而不是既有的 export_batch id。
+ *
+ * 原因是鐵律 5:`export_batches` 只允許 INSERT。所以流程必須是
+ * 「先產出檔案 → 再 INSERT 一筆帶檔案路徑的批次紀錄」,
+ * 而不是「先建空批次 → 事後 UPDATE 補檔案路徑」。
+ */
 export interface GenerateExportPayload {
-  exportBatchId: string;
+  periodYear: number;
+  periodMonth: number;
+  /** 發起匯出的使用者(寫進 export_batches.created_by) */
+  createdBy: string;
 }

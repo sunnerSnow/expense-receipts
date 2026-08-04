@@ -28,11 +28,14 @@ const raw = parseEnv(
     COMPANY_TAX_ID: z.string().regex(/^\d{8}$/, "統編須為 8 碼數字"),
     // 單據影像目錄,worker 要讀檔送去辨識
     UPLOAD_DIR: z.string().min(1),
+    // 月結匯出產出目錄(CSV + 影像 zip);web 也要讀來提供下載
+    EXPORT_DIR: z.string().min(1),
   }),
 );
 
 export const env = {
   ...raw,
-  // 與 web 用同一套解析規則,確保兩邊指向同一個影像目錄
+  // 與 web 用同一套解析規則,確保兩邊指向同一個目錄
   UPLOAD_DIR: resolveFromRepoRoot(raw.UPLOAD_DIR),
+  EXPORT_DIR: resolveFromRepoRoot(raw.EXPORT_DIR),
 };

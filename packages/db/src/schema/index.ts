@@ -41,7 +41,17 @@ export const exportBatches = pgTable("export_batches", {
   createdBy: uuid("created_by")
     .notNull()
     .references(() => users.id),
+  /** 匯出清單 CSV 的路徑 */
   filePath: text("file_path"),
+  /** 憑證影像 zip 的路徑 */
+  imageZipPath: text("image_zip_path"),
+  /** 這批匯出的單據筆數 */
+  receiptCount: integer("receipt_count").notNull().default(0),
+  /**
+   * 各幣別小計,如 `{"TWD":"12345.00","THB":"461.00"}`。
+   * 不換算台幣 —— 匯率由會計自行決定(見 ADR-0005)。
+   */
+  currencyTotals: jsonb("currency_totals").$type<Record<string, string>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -21,6 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           單據
         </Link>
         <Link href="/receipts/new">＋ 上傳</Link>
+        <Link href="/exports">月結匯出</Link>
         <Link href="/categories">分類</Link>
         <span style={{ marginLeft: "auto", color: "#666" }}>{user.name}</span>
         <form action={logout}>

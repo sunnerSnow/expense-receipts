@@ -26,6 +26,15 @@ export {
   type RawRecognition,
   type RecognitionResult,
 } from "./recognition";
+export {
+  buildExportRows,
+  exportFileName,
+  toCsv,
+  EXPORT_COLUMNS,
+  type ExportBundle,
+  type ExportRow,
+  type ReceiptForExport,
+} from "./export";
 export { DEFAULT_CATEGORIES, type CategorySeed } from "./categories";
 export { amountToCents, formatCents, isValidAmount } from "./money";
 export {
