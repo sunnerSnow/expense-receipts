@@ -53,6 +53,11 @@ structured output(強制 JSON schema)。這是擷取任務不是推理任務,模
   多張會撞 429 —— 已用 pg-boss 退避重試(retryLimit 3、30 秒起跳、指數退避)吸收。
 - 注意:金鑰是 `GEMINI_API_KEY`,只從環境變數讀,錯誤訊息只往外傳
   `error.message`、不整包拋出請求內容(鐵律 8)。
+- 注意:AI Studio 現行發的是 `AQ.` 開頭的 authorization key(舊的 `AIzaSy`
+  standard key 依 Google 公告 2026-09 起停止受理)。官方 SDK 以
+  `x-goog-api-key` 標頭送出,原生端點支援 `AQ.` 金鑰;只有 OpenAI 相容端點
+  會出現「Multiple authentication credentials received」—— 本專案不走那條路。
+  worker 的 env schema 會驗金鑰前綴形狀,避免貼錯字串只換到一個看不懂的 400。
 - 注意:辨識中的單據沒有日期(`invoice_date` 為 NULL),落在所有月份篩選之外,
   列表頁另設「待處理」區塊獨立呈現,避免整批單據看起來消失。
 
