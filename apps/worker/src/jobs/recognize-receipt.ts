@@ -21,6 +21,12 @@ const MIME_BY_EXT: Record<string, string> = {
   ".heif": "image/heif",
 };
 
+/**
+ * 送 Gemini 的影像大小上限(base64 前)。
+ * Gemini inline 請求總量上限 20MB,base64 膨脹約 1/3 → 14MB 原始資料留有餘裕。
+ */
+const MAX_INLINE_IMAGE_BYTES = 14 * 1024 * 1024;
+
 /** PostgreSQL unique_violation */
 const PG_UNIQUE_VIOLATION = "23505";
 
@@ -99,7 +105,19 @@ export async function recognizeReceiptJob(deps: {
 
   let imageBase64: string;
   try {
-    imageBase64 = (await readFile(receipt.imagePath)).toString("base64");
+    const bytes = await readFile(receipt.imagePath);
+    // Gemini 的 inline 影像請求(含提示詞)總量上限 20MB;base64 會膨脹約 1/3。
+    // 先在這裡擋下並給人看得懂的訊息,而不是讓 API 回一個難解的錯誤。
+    if (bytes.byteLength > MAX_INLINE_IMAGE_BYTES) {
+      return markFailed(
+        db,
+        receipt.id,
+        `影像太大(${(bytes.byteLength / 1024 / 1024).toFixed(1)}MB,上限 ${
+          MAX_INLINE_IMAGE_BYTES / 1024 / 1024
+        }MB),請用較低解析度重拍或改手動輸入`,
+      );
+    }
+    imageBase64 = bytes.toString("base64");
   } catch {
     // 影像路徑相對於執行目錄;worker 與 web 的 cwd 不同時容易踩到,訊息要能指出方向
     return markFailed(

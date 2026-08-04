@@ -78,16 +78,21 @@ export function UploadForm({ categories }: { categories: Category[] }) {
     <form action={formAction}>
       <div style={rowStyle}>
         <label htmlFor="image">單據影像</label>
+        {/*
+          刻意不加 capture="environment":那會強制直接開相機,iOS 就不顯示
+          「照片圖庫」。不加的話系統會跳選單,拍照與選相簿都在裡面 ——
+          出差時常是先把收據拍在相機裡,回來再一批一批選檔上傳。
+        */}
         <input
           ref={fileRef}
           id="image"
           type="file"
           name="image"
           accept="image/*"
-          capture="environment"
           required
           onChange={onFileChange}
         />
+        <small style={{ color: "#666" }}>可以直接拍照,也可以從相簿或檔案選既有照片。</small>
         {decoding ? <small>解析條碼中…</small> : null}
       </div>
 

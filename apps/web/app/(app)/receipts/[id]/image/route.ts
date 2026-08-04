@@ -24,8 +24,11 @@ export async function GET(
 
   try {
     const bytes = await readFile(imagePath);
-    const ext = imagePath.split(".").pop()?.toLowerCase();
-    const type = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+    const ext = imagePath.split(".").pop()?.toLowerCase() ?? "";
+    // 與上傳時的 extFromType 對應(HEIC 來自 iPhone 相簿)
+    const type =
+      { png: "image/png", webp: "image/webp", heic: "image/heic", heif: "image/heif" }[ext] ??
+      "image/jpeg";
     return new Response(new Uint8Array(bytes), {
       headers: { "content-type": type, "cache-control": "private, max-age=3600" },
     });

@@ -10,6 +10,13 @@ const nextConfig: NextConfig = {
     "@expense-receipts/db",
     "@expense-receipts/queue",
   ],
+  experimental: {
+    serverActions: {
+      // 預設只有 1MB,但手機拍的單據照片常是 2–5MB,上傳會直接被擋下。
+      // 上限訂 15MB:Gemini 的 inline 影像請求總量限制是 20MB,留餘裕給提示詞。
+      bodySizeLimit: "15mb",
+    },
+  },
 };
 
 export default nextConfig;

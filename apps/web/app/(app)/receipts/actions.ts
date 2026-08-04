@@ -24,10 +24,26 @@ export type ActionState = { error?: string };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * MIME → 副檔名。
+ *
+ * 副檔名不只是裝飾:worker 是靠它決定送給 Gemini 的 mimeType(見
+ * jobs/recognize-receipt.ts 的 MIME_BY_EXT)。從相簿選檔會遇到 iPhone 的
+ * HEIC,若一律當成 jpg,worker 就會拿 image/jpeg 的標頭送 HEIC 的位元組。
+ */
 function extFromType(type: string): string {
-  if (type === "image/png") return "png";
-  if (type === "image/webp") return "webp";
-  return "jpg";
+  switch (type) {
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    case "image/heic":
+      return "heic";
+    case "image/heif":
+      return "heif";
+    default:
+      return "jpg";
+  }
 }
 
 function str(formData: FormData, key: string): string {
