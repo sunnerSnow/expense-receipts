@@ -295,6 +295,33 @@ describe("buildRecognitionJsonSchema", () => {
   });
 });
 
+describe("normalizeRecognition — 沒有設定公司統編", () => {
+  const NO_COMPANY = { categoryCodes: OPTIONS.categoryCodes, companyTaxId: null };
+
+  function okNoCompany(input: unknown) {
+    const r = normalizeRecognition(input, NO_COMPANY);
+    if (!r.ok) throw new Error(`預期成功但失敗:${r.error}`);
+    return r.value;
+  }
+
+  it("不再抱怨「買方統編不是本公司統編」", () => {
+    const v = okNoCompany(raw({ buyerTaxId: "12345678" }));
+    expect(v.warnings.some((w) => w.includes("不是本公司統編"))).toBe(false);
+  });
+
+  it("有買方統編的統一發票落在 review,交人工判斷", () => {
+    expect(okNoCompany(raw({ buyerTaxId: "12345678" })).deductibility).toBe("review");
+  });
+
+  it("泰國收據完全不受影響", () => {
+    const v = okNoCompany(
+      raw({ docType: "foreign", currency: "THB", amount: "340", taxAmount: "22.24", buyerTaxId: "" }),
+    );
+    expect(v.deductibility).toBe("expense_only");
+    expect(v.warnings.some((w) => w.includes("統編"))).toBe(false);
+  });
+});
+
 describe("buildRecognitionPrompt", () => {
   it("帶入公司統編與分類清單", () => {
     const p = buildRecognitionPrompt({
@@ -309,5 +336,11 @@ describe("buildRecognitionPrompt", () => {
   it("沒有可用分類時明確要求回空字串", () => {
     const p = buildRecognitionPrompt({ categories: [], companyTaxId: COMPANY });
     expect(p).toContain("categoryCode 一律回空字串");
+  });
+
+  it("沒有公司統編時不在提示詞裡編一個出來", () => {
+    const p = buildRecognitionPrompt({ categories: [], companyTaxId: null });
+    expect(p).not.toContain("本公司統編為");
+    expect(p).toContain("買方統編通常印在"); // 仍要求讀出買方統編
   });
 });

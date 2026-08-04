@@ -81,7 +81,8 @@ const DOC_TYPE_HINTS: Record<ReceiptDocType, string> = {
  */
 export function buildRecognitionPrompt(input: {
   categories: readonly { code: string; name: string }[];
-  companyTaxId: string;
+  /** 本公司統編;null 表示未設定(只報海外單據或不主張進項扣抵) */
+  companyTaxId: string | null;
 }): string {
   const docTypes = RECEIPT_DOC_TYPES.map((t) => `- ${t}:${DOC_TYPE_HINTS[t]}`).join("\n");
   const cats =
@@ -105,8 +106,11 @@ ${cats}
 3. **金額 amount 是「含稅總金額」**(顧客實付的那個數字),純數字不含貨幣符號與千分位,
    例如 1050 或 1050.00。有「總計」「應收」「合計」欄位時以它為準。
 4. **taxAmount 是營業稅額**。單據上有印才填,沒印就回空字串 —— 不要自己用 5% 算。
-5. **統一編號是 8 碼數字**。買方統編(本公司統編為 ${input.companyTaxId})通常印在
-   「買受人」「統一編號」欄位;賣方統編是開票店家的。分不清是誰的就都回空字串。
+5. **統一編號是 8 碼數字**。${
+     input.companyTaxId === null
+       ? "買方統編通常印在「買受人」「統一編號」欄位;賣方統編是開票店家的。"
+       : `買方統編(本公司統編為 ${input.companyTaxId})通常印在「買受人」「統一編號」欄位;賣方統編是開票店家的。`
+   }分不清是誰的就都回空字串。
 6. **台灣發票號碼格式是 2 個英文字母 + 8 碼數字**(如 AB12345678)。收據沒有發票號碼,回空字串。
 7. currency 用 ISO 4217 代碼,台灣單據是 TWD。
 8. summary 用 10~30 字中文描述消費內容(例如「便利商店文具與飲料」),供報帳說明用。
@@ -262,7 +266,7 @@ function isDocType(v: string): v is ReceiptDocType {
  */
 export function normalizeRecognition(
   raw: unknown,
-  options: { categoryCodes: readonly string[]; companyTaxId: string },
+  options: { categoryCodes: readonly string[]; companyTaxId: string | null },
 ): RecognitionResult {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return { ok: false, error: "辨識結果不是物件" };
@@ -331,8 +335,13 @@ export function normalizeRecognition(
   if (buyerTaxIdRaw !== "" && buyerTaxId === null) {
     warnings.push(`買方${taxIdLabel}(「${buyerTaxIdRaw}」),已略去`);
   }
-  // 只有台灣單據才談「打錯本公司統編」;國外單據本來就不會有台灣統編
-  if (isTaiwanDoc && buyerTaxId !== null && buyerTaxId !== options.companyTaxId) {
+  // 只有台灣單據、且有設定公司統編時才談「打錯本公司統編」
+  if (
+    isTaiwanDoc &&
+    options.companyTaxId !== null &&
+    buyerTaxId !== null &&
+    buyerTaxId !== options.companyTaxId
+  ) {
     warnings.push(`買方統編 ${buyerTaxId} 不是本公司統編,請確認是否打錯統編`);
   }
 

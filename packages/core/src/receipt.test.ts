@@ -30,6 +30,32 @@ describe("assessDeductibility", () => {
       assessDeductibility({ docType: "foreign", buyerTaxId: null, companyTaxId: COMPANY }),
     ).toBe("expense_only");
   });
+
+  describe("沒有設定公司統編(只報海外單據 / 不主張扣抵)", () => {
+    it("有買方統編的統一發票 → review,不憑空宣告可扣抵", () => {
+      expect(
+        assessDeductibility({ docType: "triplicate", buyerTaxId: COMPANY, companyTaxId: null }),
+      ).toBe("review");
+      expect(
+        assessDeductibility({ docType: "einvoice", buyerTaxId: "12345678", companyTaxId: null }),
+      ).toBe("review");
+    });
+
+    it("國外單據與收據不受影響,仍是僅費用憑證", () => {
+      expect(
+        assessDeductibility({ docType: "foreign", buyerTaxId: "0105526048623", companyTaxId: null }),
+      ).toBe("expense_only");
+      expect(
+        assessDeductibility({ docType: "receipt", buyerTaxId: null, companyTaxId: null }),
+      ).toBe("expense_only");
+    });
+
+    it("統一發票沒打統編 → 仍是僅費用憑證", () => {
+      expect(
+        assessDeductibility({ docType: "einvoice", buyerTaxId: null, companyTaxId: null }),
+      ).toBe("expense_only");
+    });
+  });
 });
 
 describe("canTransitionStatus", () => {

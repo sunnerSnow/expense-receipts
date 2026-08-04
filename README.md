@@ -18,7 +18,7 @@
 
 ```bash
 pnpm install
-cp .env.example .env          # 填入實際值:COMPANY_TAX_ID、GEMINI_API_KEY
+cp .env.example .env          # 填入 GEMINI_API_KEY(COMPANY_TAX_ID 選填)
 docker compose up -d          # PostgreSQL 17,host port 5433(避開 booking-crm 的 5432)
 pnpm db:migrate               # 套用 migrations
 pnpm db:seed                  # 預設分類 + admin 使用者

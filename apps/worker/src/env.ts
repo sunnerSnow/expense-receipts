@@ -24,8 +24,14 @@ const raw = parseEnv(
           "請確認貼的是 https://aistudio.google.com/apikey 產生的金鑰,而不是其他密鑰",
       ),
     GEMINI_MODEL: z.string().min(1),
-    // 判斷進項稅額可否扣抵要比對本公司統編
-    COMPANY_TAX_ID: z.string().regex(/^\d{8}$/, "統編須為 8 碼數字"),
+    /**
+     * 本公司統編,**選填**。只用來比對買方統編、判斷進項稅額可否扣抵。
+     * 只報海外單據或不主張進項扣抵時留空即可(留空 → 一律交人工判斷)。
+     */
+    COMPANY_TAX_ID: z
+      .string()
+      .refine((v) => v === "" || /^\d{8}$/.test(v), "統編須為 8 碼數字,或留空(不做扣抵比對)")
+      .optional(),
     // 單據影像目錄,worker 要讀檔送去辨識
     UPLOAD_DIR: z.string().min(1),
     // 月結匯出產出目錄(CSV + 影像 zip);web 也要讀來提供下載
@@ -35,6 +41,8 @@ const raw = parseEnv(
 
 export const env = {
   ...raw,
+  // 未設定與空字串都視為 null,下游只需判斷一種
+  COMPANY_TAX_ID: raw.COMPANY_TAX_ID ? raw.COMPANY_TAX_ID : null,
   // 與 web 用同一套解析規則,確保兩邊指向同一個目錄
   UPLOAD_DIR: resolveFromRepoRoot(raw.UPLOAD_DIR),
   EXPORT_DIR: resolveFromRepoRoot(raw.EXPORT_DIR),

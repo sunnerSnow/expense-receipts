@@ -31,7 +31,7 @@ users ──< receipts >── categories
 | `status` | pending_review → confirmed → exported(單向) |
 | `invoice_number` | 發票號碼;部分唯一索引做去重(NULL 不受限,收據可無號碼) |
 | `amount` / `tax_amount` | 含稅總額 / 稅額,numeric(12,2);**國外單據存原幣**,幣別看 currency |
-| `deductibility` | deductible / expense_only / review,由 core 的 assessDeductibility 判定 |
+| `deductibility` | deductible / expense_only / review,由 core 的 assessDeductibility 判定;`COMPANY_TAX_ID` 未設定時有買方統編的統一發票一律 review |
 | `image_path` | 憑證影像;只增不刪 |
 | `raw_data` | 辨識原始資料(QR 原文,或 AI 的供應商/模型/token 用量/回傳 JSON),追溯用 |
 | `recognition_status` | none / queued / succeeded / failed —— AI 工作生命週期,與 `status` 分離 |

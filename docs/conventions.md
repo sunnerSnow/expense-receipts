@@ -30,6 +30,8 @@ ADR 記歷史,這裡記「現在怎麼寫」。慣例成形時更新。
   注入(pnpm --filter 會把 cwd 換成 package 目錄,Next/tsx 不會自己往上找)
 - 路徑類變數(如 `UPLOAD_DIR`)用 `resolveFromRepoRoot()` 解析:web 與 worker
   的 cwd 不同,相對路徑會指到不同資料夾
+- `COMPANY_TAX_ID` 是選填(留空 = 不做扣抵比對);env 層把空字串正規化成 `null`,
+  下游只判斷一種「沒有值」
 - 不要用 `z.string().default(...)`:在目前的 zod 版本經 `parseEnv` 後型別會變成
   `string | undefined`。要預設值就寫進 `.env.example`,schema 保持必填(fail fast)
 

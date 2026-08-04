@@ -51,14 +51,19 @@ const TAX_CREDIT_DOC_TYPES: readonly ReceiptDocType[] = [
  * - 統一發票 + 買方統編 = 公司統編 → deductible(可扣抵)
  * - 統一發票 + 買方統編是別人的 → review(可能打錯統編,要人工確認)
  * - 其餘(收據、二聯式、國外單據、未打統編)→ expense_only(僅作費用憑證)
+ *
+ * `companyTaxId` 為 null 代表**沒有設定公司統編**(例如只報海外單據、或不主張
+ * 進項扣抵)。此時遇到「有買方統編的統一發票」不猜可否扣抵,一律回 review 交人工
+ * —— 沒有比對基準就宣告 deductible 會是憑空斷言。
  */
 export function assessDeductibility(input: {
   docType: ReceiptDocType;
   buyerTaxId: string | null;
-  companyTaxId: string;
+  companyTaxId: string | null;
 }): Deductibility {
   if (!TAX_CREDIT_DOC_TYPES.includes(input.docType)) return "expense_only";
   if (input.buyerTaxId === null) return "expense_only";
+  if (input.companyTaxId === null) return "review";
   if (input.buyerTaxId !== input.companyTaxId) return "review";
   return "deductible";
 }
