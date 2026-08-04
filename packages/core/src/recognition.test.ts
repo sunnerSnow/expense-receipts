@@ -132,10 +132,10 @@ describe("normalizeRecognition — 發票號碼", () => {
     expect(ok(raw({ invoiceNumber: "ab-1234 5678" })).invoiceNumber).toBe("AB12345678");
   });
 
-  it("格式不對就略去並警告", () => {
+  it("台灣發票號碼格式不對就略去並警告", () => {
     const v = ok(raw({ invoiceNumber: "A1234567" }));
     expect(v.invoiceNumber).toBeNull();
-    expect(v.warnings.some((w) => w.includes("發票號碼格式不正確"))).toBe(true);
+    expect(v.warnings.some((w) => w.includes("單據號碼格式不正確"))).toBe(true);
   });
 
   it("統一發票卻沒讀到號碼會提醒(去重與扣抵靠它)", () => {
@@ -176,6 +176,66 @@ describe("normalizeRecognition — 稅額比例檢查", () => {
   it("非統一發票不做比例檢查(收據沒有稅額結構)", () => {
     const v = ok(raw({ docType: "receipt", invoiceNumber: "", amount: "1050", taxAmount: "500" }));
     expect(v.warnings.some((w) => w.includes("營業稅比例"))).toBe(false);
+  });
+});
+
+describe("normalizeRecognition — 國外單據(海外出差)", () => {
+  /** 泰國 Starbucks:總額 340 THB、VAT 22.24、未稅 317.76(VAT 7%) */
+  const thaiStarbucks = () =>
+    raw({
+      docType: "foreign",
+      currency: "THB",
+      amount: "340",
+      taxAmount: "22.24",
+      invoiceNumber: "260705-02-10267",
+      sellerTaxId: "0105541006668",
+      buyerTaxId: "",
+      sellerName: "Starbucks Coffee",
+      invoiceDate: "2026-07-05",
+    });
+
+  it("泰國 7% VAT 不會被台灣 5% 的檢查誤判", () => {
+    const v = ok(thaiStarbucks());
+    expect(v.warnings.some((w) => w.includes("5% 營業稅比例"))).toBe(false);
+    expect(v.taxAmount).toBe("22.24");
+  });
+
+  it("金額保留原幣、幣別保留 THB,並提醒需換算", () => {
+    const v = ok(thaiStarbucks());
+    expect(v.currency).toBe("THB");
+    expect(v.amount).toBe("340.00");
+    expect(v.warnings.some((w) => w.includes("外幣單據") && w.includes("THB"))).toBe(true);
+  });
+
+  it("13 碼泰國統編照收,不因為不是 8 碼就被丟掉", () => {
+    expect(ok(thaiStarbucks()).sellerTaxId).toBe("0105541006668");
+  });
+
+  it("自由格式的國外單據號碼照收(仍吃唯一索引可擋重複上傳)", () => {
+    expect(ok(thaiStarbucks()).invoiceNumber).toBe("260705-02-10267");
+    expect(ok(raw({ docType: "foreign", currency: "THB", invoiceNumber: "501083100023776" })).invoiceNumber).toBe(
+      "501083100023776",
+    );
+  });
+
+  it("國外單據只作費用憑證,不可扣抵台灣進項稅", () => {
+    expect(ok(thaiStarbucks()).deductibility).toBe("expense_only");
+  });
+
+  it("國外單據不檢查「買方統編是否為本公司」", () => {
+    const v = ok(raw({ docType: "foreign", currency: "THB", buyerTaxId: "0105526048623" }));
+    expect(v.warnings.some((w) => w.includes("不是本公司統編"))).toBe(false);
+  });
+
+  it("台幣單據仍走台灣規則(8 碼統編、發票號碼格式)", () => {
+    const v = ok(raw({ sellerTaxId: "0105541006668" }));
+    expect(v.sellerTaxId).toBeNull();
+    expect(v.warnings.some((w) => w.includes("不是 8 碼數字"))).toBe(true);
+  });
+
+  it("稅額不小於總額的檢查不分國內外", () => {
+    const v = ok(raw({ docType: "foreign", currency: "THB", amount: "50", taxAmount: "50" }));
+    expect(v.warnings.some((w) => w.includes("不小於總額"))).toBe(true);
   });
 });
 

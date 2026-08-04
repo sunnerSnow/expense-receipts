@@ -58,6 +58,7 @@ export default async function ReceiptsPage({
     rows.map((r) => ({
       categoryId: r.receipts.categoryId,
       amount: r.receipts.amount,
+      currency: r.receipts.currency,
       deductibility: r.receipts.deductibility,
     })),
   );
@@ -162,14 +163,33 @@ export default async function ReceiptsPage({
           <div style={{ fontSize: "1.3rem", fontWeight: 600 }}>{summary.count}</div>
         </div>
         <div>
-          <div style={{ color: "#666", fontSize: "0.85rem" }}>總額</div>
+          <div style={{ color: "#666", fontSize: "0.85rem" }}>
+            總額{summary.hasForeignCurrency ? "(台幣部分)" : ""}
+          </div>
           <div style={{ fontSize: "1.3rem", fontWeight: 600 }}>{formatCents(summary.totalCents)}</div>
         </div>
         <div>
           <div style={{ color: "#666", fontSize: "0.85rem" }}>可扣抵進項</div>
           <div style={{ fontSize: "1.3rem", fontWeight: 600 }}>{formatCents(summary.deductibleCents)}</div>
         </div>
+        {/* 外幣不併入台幣總額(340 泰銖不是 340 台幣),各幣別分開列 */}
+        {summary.byCurrency
+          .filter((c) => c.currency !== "TWD")
+          .map((c) => (
+            <div key={c.currency}>
+              <div style={{ color: "#666", fontSize: "0.85rem" }}>{c.currency}({c.count} 筆)</div>
+              <div style={{ fontSize: "1.3rem", fontWeight: 600 }}>
+                {c.currency} {(c.totalCents / 100).toLocaleString()}
+              </div>
+            </div>
+          ))}
       </section>
+
+      {summary.hasForeignCurrency ? (
+        <p style={{ color: "#b8860b", marginTop: "-0.5rem" }}>
+          本月有外幣單據,金額為原幣未換算;台幣總額與分類小計不含外幣,報帳時請自行換算。
+        </p>
+      ) : null}
 
       {summary.byCategory.length > 0 ? (
         <details style={{ marginBottom: "1rem" }}>
@@ -211,7 +231,12 @@ export default async function ReceiptsPage({
                       <Link href={`/receipts/${rec.id}`}>{rec.invoiceDate}</Link>
                     </td>
                     <td style={cell}>{rec.sellerName ?? rec.sellerTaxId ?? "—"}</td>
-                    <td style={{ ...cell, textAlign: "right" }}>{formatCents(amountToCents(rec.amount))}</td>
+                    <td style={{ ...cell, textAlign: "right" }}>
+                      {/* 外幣不能掛 NT$ 前綴,標出實際幣別 */}
+                      {rec.currency === "TWD"
+                        ? formatCents(amountToCents(rec.amount))
+                        : `${rec.currency} ${Number(rec.amount).toLocaleString()}`}
+                    </td>
                     <td style={cell}>{r.categories?.name ?? "未分類"}</td>
                     <td style={cell}>{rec.deductibility ? DEDUCTIBILITY_LABELS[rec.deductibility] : "—"}</td>
                     <td style={cell}>{STATUS_LABELS[rec.status]}</td>

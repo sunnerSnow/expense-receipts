@@ -30,7 +30,7 @@ users ──< receipts >── categories
 | `source` | qr(QR 解析)/ ai(雲端 vision 辨識)/ manual(手動 key) |
 | `status` | pending_review → confirmed → exported(單向) |
 | `invoice_number` | 發票號碼;部分唯一索引做去重(NULL 不受限,收據可無號碼) |
-| `amount` / `tax_amount` | 含稅總額 / 稅額,numeric(12,2);國外單據存原幣 + currency |
+| `amount` / `tax_amount` | 含稅總額 / 稅額,numeric(12,2);**國外單據存原幣**,幣別看 currency |
 | `deductibility` | deductible / expense_only / review,由 core 的 assessDeductibility 判定 |
 | `image_path` | 憑證影像;只增不刪 |
 | `raw_data` | 辨識原始資料(QR 原文,或 AI 的供應商/模型/token 用量/回傳 JSON),追溯用 |
@@ -71,6 +71,19 @@ worker      讀影像 → Gemini → core normalizeRecognition
 確認入帳的前置條件(`confirmReceipt`):非 queued、有日期、金額不為 0 ——
 缺日期的單據會落在所有月份區間之外,連月結都撈不到,不可入帳。
 
+## 多幣別(海外出差)
+
+`amount` 存**單據上的原幣金額**,不換算。因此:
+
+- `summarizeReceipts()` 依 currency 分組:台幣總額(`totalCents`)與分類小計
+  **只含台幣**,外幣走 `byCurrency` 另外列出。340 泰銖不能當 340 台幣加總。
+- `deductibility` 對國外單據一律 `expense_only`(國外消費無台灣進項稅可扣抵)。
+- 台灣專屬的欄位驗證(8 碼統編、2 字母+8 數字發票號碼、5% 營業稅比例)只在
+  `currency === 'TWD'` 且 `doc_type !== 'foreign'` 時套用 —— 泰國 VAT 是 7%、
+  統編 13 碼,硬套只會製造假警告。
+- **匯率換算目前不做**:辨識時會加一條 warning 提醒需自行換算。要在報表/匯出
+  自動換算需先決定匯率來源(實際刷卡金額 / 月平均匯率 / 會計指定),見 roadmap。
+
 ## 不變量(依執行強度排序,見 engineering-playbook 第二節)
 
 | 不變量 | 下沉層級 |
@@ -81,4 +94,5 @@ worker      讀影像 → Gemini → core normalizeRecognition
 | 分類/來源/狀態值合法 | Drizzle text enum + TypeScript 型別 |
 | 影像只增不刪 | 慣例(conventions 第 5 節)—— 刪除 API 不碰檔案 |
 | AI 結果不會直接入帳 | worker 的更新語句從不寫 `status`;確認動作另有前置檢查 |
+| 外幣金額不被當台幣加總 | core `summarizeReceipts()` 依 currency 分組;台幣總額不含外幣 |
 | 辨識中的單據不被人工覆寫 | server action 檢查 `recognition_status='queued'` 就拒絕編輯/確認 |
