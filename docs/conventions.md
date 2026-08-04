@@ -89,6 +89,34 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
 - 建不出 worker 時要有退路(直接走伺服器端辨識),不要 fallback 回主執行緒硬算
 - 任何等待都要有逾時上限,並且不要讓送出按鈕永遠停在 disabled
 
+## 7c. 不要在 dev server 執行中動它的 .next
+
+對著正在執行的 `next dev` 所用的 `.next` 目錄跑 `pnpm build`、或把它砍掉,會讓
+那個 dev server 再也找不到自己的 chunk:**頁面 HTML 還出得來,但所有 JS 變成
+`ERR_ABORTED`、React 不會 hydrate**。表面症狀是「按鈕點不動、選了檔案沒反應」,
+完全聯想不到根因,曾因此浪費一輪除錯。
+
+要在別人開發中並行驗證時:
+
+```bash
+NEXT_DIST_DIR=.next-verify npx next dev -p 3005   # 用另一個輸出目錄與 port
+```
+
+`distDir` 已可用 `NEXT_DIST_DIR` 覆寫(見 apps/web/next.config.ts)。
+
+## 7d. 前端行為要在真實瀏覽器裡驗
+
+`pnpm build` 綠、頁面回 200,都不代表前端真的能動 —— hydration 失敗時兩者都是綠的。
+本機沒有瀏覽器自動化套件時,可以用系統 Chrome 的 CDP 直接驗(不必加任何依賴):
+
+```bash
+chrome --headless=new --remote-debugging-port=9222 about:blank
+# 再用 Node 內建的 fetch + WebSocket 對 CDP 下 Runtime.evaluate
+```
+
+至少要驗:目標元素有 `__react*` 屬性(代表已 hydrate)、`Network.loadingFailed`
+沒有 script/stylesheet、以及互動後畫面真的變了。
+
 ## 8. Node 專屬 API 與 edge runtime
 
 - Next 會把 `instrumentation.ts` 同時編成 nodejs 與 edge 兩份。任何會牽連到
