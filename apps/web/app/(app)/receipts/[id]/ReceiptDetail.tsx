@@ -110,11 +110,25 @@ export function ReceiptDetail({ receipt, categories }: { receipt: ReceiptView; c
       ) : null}
 
       {receipt.hasImage ? (
-        <img
-          src={`/receipts/${receipt.id}/image`}
-          alt="單據影像"
-          style={{ maxWidth: "100%", border: "1px solid #ddd", borderRadius: 8, marginBottom: "1rem" }}
-        />
+        // 限制高度:直式收據照片(3024×4032)在手機上會佔掉大半個螢幕,
+        // 把要核對的欄位與按鈕推到很下面。點圖可開原尺寸。
+        <p style={{ margin: "0 0 1rem" }}>
+          <a href={`/receipts/${receipt.id}/image`} target="_blank" rel="noreferrer">
+            <img
+              src={`/receipts/${receipt.id}/image`}
+              alt="單據影像(點擊看原尺寸)"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "40vh",
+                objectFit: "contain",
+                border: "1px solid #ddd",
+                borderRadius: 8,
+                display: "block",
+              }}
+            />
+          </a>
+          <small style={{ color: "#666" }}>點圖可開原尺寸對照</small>
+        </p>
       ) : null}
 
       {readOnly ? (
