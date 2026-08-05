@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import {
+  formatAmount,
   isEInvoiceLeftQr,
   parseEInvoiceQr,
   type EInvoiceQr,
@@ -22,8 +23,6 @@ type Decoded =
 /** QR 解不到時的兩條路;預設走 AI(Phase 2 的重點就是省下手打) */
 type Fallback = "ai" | "manual";
 
-const inputStyle = { padding: "0.5rem", fontSize: "1rem", width: "100%" } as const;
-const rowStyle = { display: "grid", gap: "0.25rem", marginBottom: "0.75rem" } as const;
 
 /**
  * 解碼時把長邊縮到這個尺寸。
@@ -187,56 +186,69 @@ export function UploadForm({ categories }: { categories: Category[] }) {
   }
 
   return (
-    <form action={formAction}>
-      <div style={rowStyle}>
-        <label htmlFor="image">單據影像</label>
-        {/*
-          刻意不加 capture="environment":那會強制直接開相機,iOS 就不顯示
-          「照片圖庫」。不加的話系統會跳選單,拍照與選相簿都在裡面 ——
-          出差時常是先把收據拍在相機裡,回來再一批一批選檔上傳。
-        */}
-        <input
-          ref={fileRef}
-          id="image"
-          type="file"
-          name="image"
-          accept="image/*"
-          required
-          onChange={onFileChange}
-        />
-        <small style={{ color: "#666" }}>可以直接拍照,也可以從相簿或檔案選既有照片。</small>
-        {decoding ? <small>解析條碼中…</small> : null}
+    <form action={formAction} className="stack">
+      <div className="card">
+        <div className="field">
+          <label htmlFor="image">單據影像</label>
+          {/*
+            刻意不加 capture="environment":那會強制直接開相機,iOS 就不顯示
+            「照片圖庫」。不加的話系統會跳選單,拍照與選相簿都在裡面 ——
+            出差時常是先把收據拍在相機裡,回來再一批一批選檔上傳。
+          */}
+          <input
+            ref={fileRef}
+            id="image"
+            className="input"
+            type="file"
+            name="image"
+            accept="image/*"
+            required
+            onChange={onFileChange}
+          />
+          <span className="field-hint">可以直接拍照,也可以從相簿或檔案選既有照片。</span>
+        </div>
+
+        {decoding ? (
+          <p className="chip chip-info">
+            <span className="spinner" aria-hidden="true" /> 檢查有沒有電子發票條碼…
+          </p>
+        ) : null}
       </div>
 
       {decoded === null ? null : decoded.mode === "fallback" ? (
         <>
-          <p style={{ color: "#b8860b" }}>{decoded.note}</p>
-          <div style={{ display: "flex", gap: "1rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
-            {(["ai", "manual"] as const).map((m) => (
-              <label key={m} style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
-                <input
-                  type="radio"
-                  name="fallbackMode"
-                  value={m}
-                  checked={fallback === m}
-                  onChange={() => setFallback(m)}
-                />
-                {m === "ai" ? "交給 AI 辨識" : "自己手動輸入"}
-              </label>
-            ))}
+          <div className="card">
+            <p className="small muted">{decoded.note}</p>
+            <div className="choice">
+              {(["ai", "manual"] as const).map((m) => (
+                <label key={m}>
+                  <input
+                    type="radio"
+                    name="fallbackMode"
+                    value={m}
+                    checked={fallback === m}
+                    onChange={() => setFallback(m)}
+                  />
+                  {m === "ai" ? "交給 AI 辨識" : "自己手動輸入"}
+                </label>
+              ))}
+            </div>
           </div>
 
           {fallback === "ai" ? (
-            <fieldset style={{ marginBottom: "0.75rem" }}>
-              <legend>🤖 AI 辨識(結果需人工確認)</legend>
+            <section className="card">
               <input type="hidden" name="source" value="ai" />
-              <p style={{ marginTop: 0, color: "#666" }}>
-                上傳後由背景程序辨識日期、店家、金額、稅額與分類,完成後這張單據會出現在「待確認」,
-                你核對金額再入帳。辨識需要幾秒到幾十秒。
+              <div className="row-between">
+                <h2>AI 辨識</h2>
+                <span className="chip chip-warn">結果需人工確認</span>
+              </div>
+              <p className="small muted">
+                上傳後由背景程序辨識日期、店家、金額、稅額與分類。完成後這張單據會停在「待確認」,
+                你核對金額再入帳。通常幾秒內完成。
               </p>
-              <div style={rowStyle}>
-                <label htmlFor="ai-category">分類(留空讓 AI 建議)</label>
-                <select id="ai-category" name="categoryId" style={inputStyle} defaultValue="">
+              <div className="field">
+                <label htmlFor="ai-category">分類</label>
+                <select id="ai-category" className="select" name="categoryId" defaultValue="">
                   <option value="">由 AI 建議</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -245,99 +257,134 @@ export function UploadForm({ categories }: { categories: Category[] }) {
                   ))}
                 </select>
               </div>
-              <div style={rowStyle}>
-                <label htmlFor="ai-note">備註(選填;填了就不會被 AI 摘要覆蓋)</label>
-                <input id="ai-note" type="text" name="note" style={inputStyle} />
+              <div className="field">
+                <label htmlFor="ai-note">備註</label>
+                <input id="ai-note" className="input" type="text" name="note" />
+                <span className="field-hint">選填。填了就不會被 AI 摘要覆蓋。</span>
               </div>
-            </fieldset>
+            </section>
           ) : (
-        <fieldset style={{ marginBottom: "0.75rem" }}>
-          <legend>手動輸入</legend>
-          <input type="hidden" name="source" value="manual" />
+            <section className="card">
+              <input type="hidden" name="source" value="manual" />
+              <h2>手動輸入</h2>
 
-          <div style={rowStyle}>
-            <label htmlFor="m-docType">單據類型</label>
-            <select id="m-docType" name="docType" style={inputStyle} defaultValue="receipt">
-              {MANUAL_DOC_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {DOC_TYPE_LABELS[t]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="m-date">日期</label>
-            <input id="m-date" type="date" name="invoiceDate" required style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="m-seller">賣方名稱</label>
-            <input id="m-seller" type="text" name="sellerName" style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="m-sellerTax">賣方統編(選填)</label>
-            <input id="m-sellerTax" type="text" name="sellerTaxId" inputMode="numeric" style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="m-buyerTax">買方統編(選填,打公司統編才可扣抵)</label>
-            <input id="m-buyerTax" type="text" name="buyerTaxId" inputMode="numeric" style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="m-invoiceNumber">發票號碼(選填)</label>
-            <input id="m-invoiceNumber" type="text" name="invoiceNumber" style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="m-amount">含稅金額</label>
-            <input id="m-amount" type="text" name="amount" inputMode="decimal" required placeholder="1050" style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="m-tax">稅額(選填)</label>
-            <input id="m-tax" type="text" name="taxAmount" inputMode="decimal" style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="m-currency">幣別</label>
-            <input id="m-currency" type="text" name="currency" defaultValue="TWD" style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="m-category">分類</label>
-            <select id="m-category" name="categoryId" style={inputStyle} defaultValue="">
-              <option value="">未分類</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="m-note">備註(選填)</label>
-            <input id="m-note" type="text" name="note" style={inputStyle} />
-          </div>
-        </fieldset>
+              <div className="grid-2">
+                <div className="field">
+                  <label htmlFor="m-docType">單據類型</label>
+                  <select id="m-docType" className="select" name="docType" defaultValue="receipt">
+                    {MANUAL_DOC_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {DOC_TYPE_LABELS[t]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="m-date">日期</label>
+                  <input id="m-date" className="input" type="date" name="invoiceDate" required />
+                </div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="m-seller">賣方名稱</label>
+                <input id="m-seller" className="input" type="text" name="sellerName" />
+              </div>
+
+              <div className="grid-2">
+                <div className="field">
+                  <label htmlFor="m-amount">含稅金額</label>
+                  <input
+                    id="m-amount"
+                    className="input"
+                    type="text"
+                    name="amount"
+                    inputMode="decimal"
+                    required
+                    placeholder="1050"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="m-tax">稅額</label>
+                  <input id="m-tax" className="input" type="text" name="taxAmount" inputMode="decimal" />
+                </div>
+              </div>
+
+              <div className="grid-2">
+                <div className="field">
+                  <label htmlFor="m-currency">幣別</label>
+                  <input id="m-currency" className="input" type="text" name="currency" defaultValue="TWD" />
+                </div>
+                <div className="field">
+                  <label htmlFor="m-category">分類</label>
+                  <select id="m-category" className="select" name="categoryId" defaultValue="">
+                    <option value="">未分類</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <details>
+                <summary className="small">統編與發票號碼(選填)</summary>
+                <div className="stack stack-inset">
+                  <div className="field">
+                    <label htmlFor="m-sellerTax">賣方統編</label>
+                    <input id="m-sellerTax" className="input" type="text" name="sellerTaxId" inputMode="numeric" />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="m-buyerTax">買方統編</label>
+                    <input id="m-buyerTax" className="input" type="text" name="buyerTaxId" inputMode="numeric" />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="m-invoiceNumber">發票號碼</label>
+                    <input id="m-invoiceNumber" className="input" type="text" name="invoiceNumber" />
+                  </div>
+                </div>
+              </details>
+
+              <div className="field">
+                <label htmlFor="m-note">備註</label>
+                <input id="m-note" className="input" type="text" name="note" />
+              </div>
+            </section>
           )}
         </>
       ) : (
         <QrFieldset invoice={decoded.invoice} categories={categories} />
       )}
 
-      {state.error ? <p style={{ color: "#c0392b" }}>{state.error}</p> : null}
+      {state.error ? <p className="error-text">{state.error}</p> : null}
 
       {/*
         解碼期間仍鎖住送出:如果這張是電子發票,搶先送出會白花一次 AI 辨識、
-        還得人工確認。縮圖後解碼通常不到 1 秒,且有 8 秒逾時上限兜底。
+        還得人工確認。縮圖 + worker 後解碼通常不到 1 秒,且有 8 秒逾時上限兜底。
       */}
-      <button
-        type="submit"
-        disabled={pending || decoding || decoded === null}
-        style={{ padding: "0.6rem 1.2rem", fontSize: "1rem" }}
-      >
-        {pending
-          ? "儲存中…"
-          : decoding
-            ? "檢查條碼中…"
-            : decoded?.mode === "fallback" && fallback === "ai"
-              ? "上傳並辨識"
-              : "儲存單據"}
-      </button>
+      <div className="actions-bar">
+        <div className="actions-bar-inner">
+          <button
+            type="submit"
+            className="btn btn-primary btn-block"
+            disabled={pending || decoding || decoded === null}
+          >
+            {pending ? (
+              <>
+                <span className="spinner" aria-hidden="true" /> 儲存中…
+              </>
+            ) : decoding ? (
+              "檢查條碼中…"
+            ) : decoded === null ? (
+              "先選一張單據影像"
+            ) : decoded.mode === "fallback" && fallback === "ai" ? (
+              "上傳並辨識"
+            ) : (
+              "儲存單據"
+            )}
+          </button>
+        </div>
+      </div>
     </form>
   );
 }
@@ -347,8 +394,7 @@ function QrFieldset({ invoice, categories }: { invoice: EInvoiceQr; categories: 
   const taxAmount = invoice.totalAmount - invoice.salesAmount;
 
   return (
-    <fieldset style={{ marginBottom: "0.75rem" }}>
-      <legend>✅ 電子發票(掃碼,將直接入帳)</legend>
+    <section className="card">
       <input type="hidden" name="source" value="qr" />
       <input type="hidden" name="invoiceNumber" value={invoice.invoiceNumber} />
       <input type="hidden" name="invoiceDate" value={invoice.invoiceDate} />
@@ -357,24 +403,48 @@ function QrFieldset({ invoice, categories }: { invoice: EInvoiceQr; categories: 
       <input type="hidden" name="amount" value={String(invoice.totalAmount)} />
       <input type="hidden" name="taxAmount" value={String(taxAmount)} />
       <input type="hidden" name="rawData" value={JSON.stringify(invoice)} />
-      <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "0.25rem 1rem", margin: 0 }}>
-        <dt>發票號碼</dt>
-        <dd style={{ margin: 0 }}>{invoice.invoiceNumber}</dd>
-        <dt>日期</dt>
-        <dd style={{ margin: 0 }}>{invoice.invoiceDate}</dd>
-        <dt>賣方統編</dt>
-        <dd style={{ margin: 0 }}>{invoice.sellerTaxId}</dd>
-        <dt>買方統編</dt>
-        <dd style={{ margin: 0 }}>{invoice.buyerTaxId ?? "(個人,未打統編)"}</dd>
-        <dt>含稅總額</dt>
-        <dd style={{ margin: 0 }}>NT${invoice.totalAmount.toLocaleString()}</dd>
-        <dt>稅額</dt>
-        <dd style={{ margin: 0 }}>NT${taxAmount.toLocaleString()}</dd>
-      </dl>
-      <div style={{ ...rowStyle, marginTop: "0.75rem" }}>
-        <label htmlFor="qr-category">分類(可稍後補)</label>
-        <select id="qr-category" name="categoryId" style={inputStyle} defaultValue="">
-          <option value="">未分類</option>
+
+      <div className="row-between">
+        <h2>電子發票</h2>
+        <span className="chip chip-ok">掃碼,將直接入帳</span>
+      </div>
+      <p className="small muted">條碼是財政部規格的一手資料,不經過 AI,核對一眼即可。</p>
+
+      <div className="table-wrap">
+        <table className="table">
+          <tbody>
+            <tr>
+              <th scope="row">發票號碼</th>
+              <td className="tnum">{invoice.invoiceNumber}</td>
+            </tr>
+            <tr>
+              <th scope="row">日期</th>
+              <td className="tnum">{invoice.invoiceDate}</td>
+            </tr>
+            <tr>
+              <th scope="row">賣方統編</th>
+              <td className="tnum">{invoice.sellerTaxId}</td>
+            </tr>
+            <tr>
+              <th scope="row">買方統編</th>
+              <td className="tnum">{invoice.buyerTaxId ?? "(個人,未打統編)"}</td>
+            </tr>
+            <tr>
+              <th scope="row">含稅總額</th>
+              <td className="num">{formatAmount(String(invoice.totalAmount), "TWD")}</td>
+            </tr>
+            <tr>
+              <th scope="row">稅額</th>
+              <td className="num">{formatAmount(String(taxAmount), "TWD")}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="field">
+        <label htmlFor="qr-category">分類</label>
+        <select id="qr-category" className="select" name="categoryId" defaultValue="">
+          <option value="">未分類(可稍後補)</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -382,6 +452,6 @@ function QrFieldset({ invoice, categories }: { invoice: EInvoiceQr; categories: 
           ))}
         </select>
       </div>
-    </fieldset>
+    </section>
   );
 }

@@ -36,7 +36,7 @@ export {
   type ReceiptForExport,
 } from "./export";
 export { DEFAULT_CATEGORIES, type CategorySeed } from "./categories";
-export { amountToCents, formatCents, isValidAmount } from "./money";
+export { amountToCents, formatAmount, formatCents, isValidAmount } from "./money";
 export {
   summarizeReceipts,
   type CategorySubtotal,

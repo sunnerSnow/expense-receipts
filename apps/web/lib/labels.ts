@@ -28,6 +28,24 @@ export const SOURCE_LABELS: Record<ReceiptSource, string> = {
   manual: "手動輸入",
 };
 
+/**
+ * 狀態的 chip 樣式。
+ *
+ * 狀態同時用顏色與形狀編碼,才能在列表裡一眼掃出「哪些還要處理」:
+ * 待確認=琥珀(要你動作)、已確認=綠(完成)、已匯出=灰(鎖定)。
+ */
+export const STATUS_CHIP: Record<ReceiptStatus, string> = {
+  pending_review: "chip chip-warn",
+  confirmed: "chip chip-ok",
+  exported: "chip chip-locked",
+};
+
+export const DEDUCTIBILITY_CHIP: Record<Deductibility, string> = {
+  deductible: "chip chip-ok",
+  expense_only: "chip",
+  review: "chip chip-warn",
+};
+
 /** 手動輸入時可選的單據類型(排除 einvoice,那是掃碼專用) */
 export const MANUAL_DOC_TYPES: ReceiptDocType[] = [
   "triplicate",

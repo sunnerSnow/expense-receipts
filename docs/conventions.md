@@ -80,6 +80,19 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
   `instrumentation`,production build 不會。動到 `lib/env.ts`、`instrumentation.ts`
   或 `packages/config` 時,一定要真的起一次 `pnpm dev` 並開 `/login` 確認 200
 
+## 6a. 樣式
+
+- **不寫內嵌 `style={{...}}`**。所有樣式走 `apps/web/app/globals.css` 的 token 與
+  元件 class(`.card` / `.btn` / `.field` / `.chip` / `.banner` / `.item` …)
+- 顏色、圓角、陰影只用 CSS 變數,不寫死色碼 —— 深色主題靠 token 覆寫,
+  元件本身不進 media query
+- 語意色(綠/琥珀/紅)與品牌色分開:狀態不是裝飾,`STATUS_CHIP` 之類的對應表
+  放 `lib/labels.ts`
+- 金額、統編、日期加 `.tnum`(等寬數字),欄位才對得齊
+- 新增元件 class 時注意串接權重:`.field > span` 這種型別選擇器(0,1,1)會蓋掉
+  `.field-hint`(0,1,0),已踩過一次
+- 主要動作用 `.actions-bar` 吸底:手機上影像 + 十幾個欄位會把按鈕推到螢幕外
+
 ## 6b. 期間篩選的預設值
 
 以月份篩選的頁面(單據列表、月結匯出)不要硬性預設「當月」。報帳是事後行為,

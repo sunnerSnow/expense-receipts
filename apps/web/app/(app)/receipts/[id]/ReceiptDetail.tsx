@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type {
   Deductibility,
@@ -10,10 +11,12 @@ import type {
   RecognitionStatus,
 } from "@expense-receipts/core";
 import {
+  DEDUCTIBILITY_CHIP,
   DEDUCTIBILITY_LABELS,
   DOC_TYPE_LABELS,
   MANUAL_DOC_TYPES,
   SOURCE_LABELS,
+  STATUS_CHIP,
   STATUS_LABELS,
 } from "@/lib/labels";
 import {
@@ -48,8 +51,6 @@ export type ReceiptView = {
   recognitionWarnings: string[] | null;
 };
 
-const inputStyle = { padding: "0.5rem", fontSize: "1rem", width: "100%" } as const;
-const rowStyle = { display: "grid", gap: "0.25rem", marginBottom: "0.75rem" } as const;
 
 // 掃碼進來的電子發票也允許在明細頁改分類/備註,但類型固定為電子發票
 const docTypeOptions = (current: ReceiptDocType): ReceiptDocType[] =>
@@ -75,33 +76,45 @@ export function ReceiptDetail({ receipt, categories }: { receipt: ReceiptView; c
 
   return (
     <>
-      <p>
-        <a href="/receipts">← 回列表</a>
-      </p>
-      <h1>單據明細</h1>
-      <p style={{ color: "#666" }}>
-        來源:{SOURCE_LABELS[receipt.source]}　狀態:{STATUS_LABELS[receipt.status]}
-        {receipt.deductibility ? `　${DEDUCTIBILITY_LABELS[receipt.deductibility]}` : ""}
-      </p>
+      <div className="stack-sm">
+        <p className="small">
+          <Link href="/receipts">← 回列表</Link>
+        </p>
+        <div className="row-between">
+          <h1>單據明細</h1>
+          <span className={STATUS_CHIP[receipt.status]}>{STATUS_LABELS[receipt.status]}</span>
+        </div>
+        <div className="row small">
+          <span className="chip">{SOURCE_LABELS[receipt.source]}</span>
+          <span className="chip">{DOC_TYPE_LABELS[receipt.docType]}</span>
+          {receipt.deductibility ? (
+            <span className={DEDUCTIBILITY_CHIP[receipt.deductibility]}>
+              {DEDUCTIBILITY_LABELS[receipt.deductibility]}
+            </span>
+          ) : null}
+        </div>
+      </div>
 
       {recognizing ? (
-        <p style={{ padding: "0.75rem", background: "#eef5ff", border: "1px solid #b9d3f5", borderRadius: 8 }}>
-          🤖 AI 辨識中…(自動更新,不用重整)
+        <p className="banner banner-info">
+          <span>
+            <span className="spinner" aria-hidden="true" /> AI 辨識中…(自動更新,不用重整)
+          </span>
         </p>
       ) : null}
 
       {receipt.recognitionStatus === "failed" && receipt.recognitionError ? (
-        <div style={{ padding: "0.75rem", background: "#fdecea", border: "1px solid #f5c2bd", borderRadius: 8 }}>
-          <strong>辨識失敗:</strong>
-          {receipt.recognitionError}
-          <p style={{ margin: "0.5rem 0 0", color: "#666" }}>可以直接在下面手動填寫,或重新辨識一次。</p>
+        <div className="banner banner-danger">
+          <strong>辨識失敗</strong>
+          <span>{receipt.recognitionError}</span>
+          <span className="small">可以直接在下面手動填寫,或重新辨識一次。</span>
         </div>
       ) : null}
 
       {warnings.length > 0 ? (
-        <div style={{ padding: "0.75rem", background: "#fff8e1", border: "1px solid #ecd08a", borderRadius: 8 }}>
-          <strong>AI 辨識結果請核對這幾點:</strong>
-          <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.25rem" }}>
+        <div className="banner banner-warn">
+          <strong>請核對這幾點</strong>
+          <ul>
             {warnings.map((w) => (
               <li key={w}>{w}</li>
             ))}
@@ -110,78 +123,100 @@ export function ReceiptDetail({ receipt, categories }: { receipt: ReceiptView; c
       ) : null}
 
       {receipt.hasImage ? (
-        // 限制高度:直式收據照片(3024×4032)在手機上會佔掉大半個螢幕,
-        // 把要核對的欄位與按鈕推到很下面。點圖可開原尺寸。
-        <p style={{ margin: "0 0 1rem" }}>
+        // 限制高度:直式收據照片(3024×4032)會佔掉大半個手機螢幕,
+        // 把要核對的欄位推到螢幕外。點圖開原尺寸對照。
+        <div className="card">
           <a href={`/receipts/${receipt.id}/image`} target="_blank" rel="noreferrer">
-            <img
-              src={`/receipts/${receipt.id}/image`}
-              alt="單據影像(點擊看原尺寸)"
-              style={{
-                maxWidth: "100%",
-                maxHeight: "40vh",
-                objectFit: "contain",
-                border: "1px solid #ddd",
-                borderRadius: 8,
-                display: "block",
-              }}
-            />
+            <img className="receipt-image" src={`/receipts/${receipt.id}/image`} alt="單據影像(點擊看原尺寸)" />
           </a>
-          <small style={{ color: "#666" }}>點圖可開原尺寸對照</small>
-        </p>
+          <span className="field-hint">點圖可開原尺寸對照</span>
+        </div>
       ) : null}
 
       {readOnly ? (
-        <p style={{ color: "#b8860b" }}>
-          {recognizing ? "辨識完成後才能編輯欄位(避免 AI 回填時蓋掉你的輸入)。" : "此單據已匯出,鎖定不可修改。"}
+        <p className="banner">
+          {recognizing
+            ? "辨識完成後才能編輯欄位(避免 AI 回填時蓋掉你的輸入)。"
+            : "此單據已匯出,鎖定不可修改。"}
         </p>
       ) : (
-        <form action={editAction}>
+        <form action={editAction} className="card">
           <input type="hidden" name="id" value={receipt.id} />
+          <h2>核對欄位</h2>
 
-          <div style={rowStyle}>
-            <label htmlFor="docType">單據類型</label>
-            <select id="docType" name="docType" defaultValue={receipt.docType} style={inputStyle} disabled={receipt.docType === "einvoice"}>
-              {docTypeOptions(receipt.docType).map((t) => (
-                <option key={t} value={t}>
-                  {DOC_TYPE_LABELS[t]}
-                </option>
-              ))}
-            </select>
-            {receipt.docType === "einvoice" ? <input type="hidden" name="docType" value="einvoice" /> : null}
+          <div className="grid-2">
+            <div className="field">
+              <label htmlFor="docType">單據類型</label>
+              <select
+                id="docType"
+                className="select"
+                name="docType"
+                defaultValue={receipt.docType}
+                disabled={receipt.docType === "einvoice"}
+              >
+                {docTypeOptions(receipt.docType).map((t) => (
+                  <option key={t} value={t}>
+                    {DOC_TYPE_LABELS[t]}
+                  </option>
+                ))}
+              </select>
+              {receipt.docType === "einvoice" ? (
+                <input type="hidden" name="docType" value="einvoice" />
+              ) : null}
+            </div>
+            <div className="field">
+              <label htmlFor="invoiceDate">日期</label>
+              <input
+                id="invoiceDate"
+                className="input"
+                type="date"
+                name="invoiceDate"
+                defaultValue={receipt.invoiceDate ?? ""}
+                required
+              />
+            </div>
           </div>
 
-          <div style={rowStyle}>
-            <label htmlFor="invoiceDate">日期</label>
-            <input id="invoiceDate" type="date" name="invoiceDate" defaultValue={receipt.invoiceDate ?? ""} required style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
+          <div className="field">
             <label htmlFor="sellerName">賣方名稱</label>
-            <input id="sellerName" type="text" name="sellerName" defaultValue={receipt.sellerName ?? ""} style={inputStyle} />
+            <input
+              id="sellerName"
+              className="input"
+              type="text"
+              name="sellerName"
+              defaultValue={receipt.sellerName ?? ""}
+            />
           </div>
-          <div style={rowStyle}>
-            <label htmlFor="sellerTaxId">賣方統編</label>
-            <input id="sellerTaxId" type="text" name="sellerTaxId" defaultValue={receipt.sellerTaxId ?? ""} inputMode="numeric" style={inputStyle} />
+
+          <div className="grid-2">
+            <div className="field">
+              <label htmlFor="amount">含稅金額({receipt.currency})</label>
+              <input
+                id="amount"
+                className="input"
+                type="text"
+                name="amount"
+                defaultValue={receipt.amount}
+                inputMode="decimal"
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="taxAmount">稅額</label>
+              <input
+                id="taxAmount"
+                className="input"
+                type="text"
+                name="taxAmount"
+                defaultValue={receipt.taxAmount ?? ""}
+                inputMode="decimal"
+              />
+            </div>
           </div>
-          <div style={rowStyle}>
-            <label htmlFor="buyerTaxId">買方統編(打公司統編才可扣抵)</label>
-            <input id="buyerTaxId" type="text" name="buyerTaxId" defaultValue={receipt.buyerTaxId ?? ""} inputMode="numeric" style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="invoiceNumber">發票號碼</label>
-            <input id="invoiceNumber" type="text" name="invoiceNumber" defaultValue={receipt.invoiceNumber ?? ""} style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="amount">含稅金額({receipt.currency})</label>
-            <input id="amount" type="text" name="amount" defaultValue={receipt.amount} inputMode="decimal" required style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
-            <label htmlFor="taxAmount">稅額</label>
-            <input id="taxAmount" type="text" name="taxAmount" defaultValue={receipt.taxAmount ?? ""} inputMode="decimal" style={inputStyle} />
-          </div>
-          <div style={rowStyle}>
+
+          <div className="field">
             <label htmlFor="categoryId">分類</label>
-            <select id="categoryId" name="categoryId" defaultValue={receipt.categoryId ?? ""} style={inputStyle}>
+            <select id="categoryId" className="select" name="categoryId" defaultValue={receipt.categoryId ?? ""}>
               <option value="">未分類</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -190,49 +225,112 @@ export function ReceiptDetail({ receipt, categories }: { receipt: ReceiptView; c
               ))}
             </select>
           </div>
-          <div style={rowStyle}>
+
+          <details>
+            <summary className="small">統編與發票號碼</summary>
+            <div className="stack stack-inset">
+              <div className="field">
+                <label htmlFor="sellerTaxId">賣方統編</label>
+                <input
+                  id="sellerTaxId"
+                  className="input"
+                  type="text"
+                  name="sellerTaxId"
+                  defaultValue={receipt.sellerTaxId ?? ""}
+                  inputMode="numeric"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="buyerTaxId">買方統編</label>
+                <input
+                  id="buyerTaxId"
+                  className="input"
+                  type="text"
+                  name="buyerTaxId"
+                  defaultValue={receipt.buyerTaxId ?? ""}
+                  inputMode="numeric"
+                />
+                <span className="field-hint">打公司統編才可扣抵進項稅。</span>
+              </div>
+              <div className="field">
+                <label htmlFor="invoiceNumber">發票號碼</label>
+                <input
+                  id="invoiceNumber"
+                  className="input"
+                  type="text"
+                  name="invoiceNumber"
+                  defaultValue={receipt.invoiceNumber ?? ""}
+                />
+              </div>
+            </div>
+          </details>
+
+          <div className="field">
             <label htmlFor="note">備註</label>
-            <input id="note" type="text" name="note" defaultValue={receipt.note ?? ""} style={inputStyle} />
+            <input id="note" className="input" type="text" name="note" defaultValue={receipt.note ?? ""} />
           </div>
 
-          {editState.error ? <p style={{ color: "#c0392b" }}>{editState.error}</p> : null}
-          <button type="submit" disabled={editing} style={{ padding: "0.6rem 1.2rem", fontSize: "1rem" }}>
-            {editing ? "儲存中…" : "儲存變更"}
+          {editState.error ? <p className="error-text">{editState.error}</p> : null}
+
+          <button type="submit" className="btn btn-block" disabled={editing}>
+            {editing ? (
+              <>
+                <span className="spinner" aria-hidden="true" /> 儲存中…
+              </>
+            ) : (
+              "儲存變更"
+            )}
           </button>
         </form>
       )}
 
-      <div style={{ display: "flex", gap: "1rem", marginTop: "1.5rem", flexWrap: "wrap" }}>
+      {/* 次要動作放內容區;主要動作(確認入帳)在吸底列 */}
+      <div className="row">
         {receipt.source === "ai" && receipt.status === "pending_review" && !recognizing ? (
           <form action={retryAction}>
             <input type="hidden" name="id" value={receipt.id} />
-            <button type="submit" disabled={retrying} style={{ padding: "0.5rem 1rem" }}>
+            <button type="submit" className="btn btn-sm" disabled={retrying}>
               {retrying ? "派送中…" : "重新辨識"}
             </button>
-            {retryState.error ? <span style={{ color: "#c0392b", marginLeft: "0.5rem" }}>{retryState.error}</span> : null}
-          </form>
-        ) : null}
-
-        {receipt.status === "pending_review" && !recognizing ? (
-          <form action={confirmAction}>
-            <input type="hidden" name="id" value={receipt.id} />
-            <button type="submit" disabled={confirming} style={{ padding: "0.5rem 1rem" }}>
-              {confirming ? "確認中…" : "確認入帳"}
-            </button>
-            {confirmState.error ? <span style={{ color: "#c0392b", marginLeft: "0.5rem" }}>{confirmState.error}</span> : null}
           </form>
         ) : null}
 
         {!readOnly ? (
           <form action={deleteAction}>
             <input type="hidden" name="id" value={receipt.id} />
-            <button type="submit" disabled={deleting} style={{ padding: "0.5rem 1rem", color: "#c0392b" }}>
+            <button type="submit" className="btn btn-sm btn-danger" disabled={deleting}>
               {deleting ? "刪除中…" : "刪除"}
             </button>
-            {deleteState.error ? <span style={{ color: "#c0392b", marginLeft: "0.5rem" }}>{deleteState.error}</span> : null}
           </form>
         ) : null}
       </div>
+
+      {retryState.error ? <p className="error-text">{retryState.error}</p> : null}
+      {deleteState.error ? <p className="error-text">{deleteState.error}</p> : null}
+      {confirmState.error ? <p className="error-text">{confirmState.error}</p> : null}
+
+      {/*
+        確認入帳吸在底部:明細頁有影像 + 十幾個欄位,主要動作若跟著內容排,
+        在手機上會被推到兩個螢幕以下(實際踩過)。
+      */}
+      {receipt.status === "pending_review" && !recognizing ? (
+        <div className="actions-bar">
+          <div className="actions-bar-inner">
+            <form action={confirmAction}>
+              <input type="hidden" name="id" value={receipt.id} />
+              <button type="submit" className="btn btn-primary btn-block" disabled={confirming}>
+                {confirming ? (
+                  <>
+                    <span className="spinner" aria-hidden="true" /> 確認中…
+                  </>
+                ) : (
+                  "確認入帳"
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

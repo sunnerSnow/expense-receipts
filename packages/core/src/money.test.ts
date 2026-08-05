@@ -1,5 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { amountToCents, formatCents, isValidAmount } from "./money";
+import { amountToCents, formatAmount, formatCents, isValidAmount } from "./money";
+
+describe("formatAmount", () => {
+  it("台幣掛 NT$ 前綴", () => {
+    expect(formatAmount("1050", "TWD")).toBe("NT$1,050");
+    expect(formatAmount("1103.50", "TWD")).toBe("NT$1,103.50");
+  });
+
+  it("空幣別視為台幣(舊資料防守)", () => {
+    expect(formatAmount("200", "")).toBe("NT$200");
+  });
+
+  it("外幣改掛 ISO 代碼,不能掛 NT$", () => {
+    expect(formatAmount("340.00", "THB")).toBe("THB 340");
+    expect(formatAmount("1234.56", "usd")).toBe("USD 1,234.56");
+    expect(formatAmount("340", "THB")).not.toContain("NT$");
+  });
+
+  it("千分位分組", () => {
+    expect(formatAmount("1234567", "JPY")).toBe("JPY 1,234,567");
+  });
+});
 
 describe("isValidAmount", () => {
   it("接受非負、最多兩位小數", () => {

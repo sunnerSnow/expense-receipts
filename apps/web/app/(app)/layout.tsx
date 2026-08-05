@@ -7,25 +7,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <>
-      <nav
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "1rem",
-          padding: "0.75rem 1rem",
-          borderBottom: "1px solid #e5e5e5",
-          flexWrap: "wrap",
-        }}
-      >
-        <Link href="/receipts" style={{ fontWeight: 600 }}>
+      {/*
+        導覽列吸頂並可橫向滑動:手機寬度放不下五個項目,擠成兩行比可滑動更難用。
+        「上傳」是這個工具唯一的高頻動作,做成實心 pill 與其他項目區隔。
+      */}
+      <nav className="app-nav">
+        <Link href="/receipts" className="nav-link">
           單據
         </Link>
-        <Link href="/receipts/new">＋ 上傳</Link>
-        <Link href="/exports">月結匯出</Link>
-        <Link href="/categories">分類</Link>
-        <span style={{ marginLeft: "auto", color: "#666" }}>{user.name}</span>
+        <Link href="/exports" className="nav-link">
+          月結
+        </Link>
+        <Link href="/categories" className="nav-link">
+          分類
+        </Link>
+        <Link href="/receipts/new" className="nav-cta spread">
+          ＋ 上傳
+        </Link>
         <form action={logout}>
-          <button type="submit" style={{ background: "none", border: "none", color: "#c0392b", cursor: "pointer" }}>
+          <button type="submit" className="btn btn-quiet" aria-label={`登出 ${user.name}`}>
             登出
           </button>
         </form>

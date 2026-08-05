@@ -13,8 +13,8 @@ export default async function NewReceiptPage() {
   return (
     <>
       <h1>上傳單據</h1>
-      <p style={{ color: "#666" }}>
-        拍照或選擇單據影像。偵測到電子發票條碼會自動帶入欄位;否則請手動輸入。
+      <p className="muted small">
+        偵測到電子發票條碼會自動帶入欄位並直接入帳;其他單據交給 AI 辨識或手動輸入。
       </p>
       <UploadForm categories={cats} />
     </>
