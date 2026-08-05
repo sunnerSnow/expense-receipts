@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, desc, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { categories, receipts } from "@expense-receipts/db";
 import {
   amountToCents,
@@ -40,14 +40,39 @@ export default async function ReceiptsPage({
   searchParams: Promise<{ month?: string; status?: string }>;
 }) {
   const sp = await searchParams;
-  const month = sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : currentMonth();
   const status = isStatus(sp.status) ? sp.status : undefined;
+  const db = getDb();
+
+  /**
+   * 有單據的月份。
+   *
+   * 為什麼需要:報帳的實際節奏是「事後補上個月的單據」(出差回來才整理),
+   * 所以預設顯示當月常常是空的 —— 使用者會以為資料不見了。有了這份清單就能
+   * 一是挑出合理的預設月份,二是在畫面上直接給快速切換的連結。
+   */
+  const monthsWithData = await db
+    .select({
+      month: sql<string>`to_char(${receipts.invoiceDate}, 'YYYY-MM')`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(receipts)
+    .where(isNotNull(receipts.invoiceDate))
+    .groupBy(sql`to_char(${receipts.invoiceDate}, 'YYYY-MM')`)
+    .orderBy(desc(sql`to_char(${receipts.invoiceDate}, 'YYYY-MM')`));
+
+  const requested = sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : null;
+  // 沒指定月份時:當月有資料就用當月,否則退到最近一個有資料的月份
+  const defaultMonth = monthsWithData.some((m) => m.month === currentMonth())
+    ? currentMonth()
+    : (monthsWithData[0]?.month ?? currentMonth());
+  const month = requested ?? defaultMonth;
+  const autoSwitched = requested === null && month !== currentMonth();
   const { start, next } = monthBounds(month);
 
   const conds = [gte(receipts.invoiceDate, start), lt(receipts.invoiceDate, next)];
   if (status) conds.push(eq(receipts.status, status));
 
-  const rows = await getDb()
+  const rows = await db
     .select()
     .from(receipts)
     .leftJoin(categories, eq(receipts.categoryId, categories.id))
@@ -72,7 +97,7 @@ export default async function ReceiptsPage({
    * 原因:AI 辨識中的單據還沒有日期(invoice_date 是 NULL),沒讀出日期的也一樣 ——
    * 這些單據落在所有月份區間之外,只靠上面那張表會整批消失不見。
    */
-  const attention = await getDb()
+  const attention = await db
     .select({
       id: receipts.id,
       recognitionStatus: receipts.recognitionStatus,
@@ -124,6 +149,28 @@ export default async function ReceiptsPage({
             ))}
           </ul>
         </section>
+      ) : null}
+
+      {/* 有單據的月份直接列出來:預設當月常常是空的,不給入口會讓人以為資料不見了 */}
+      {monthsWithData.length > 0 ? (
+        <p style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ color: "#666" }}>有單據的月份:</span>
+          {monthsWithData.map((m) => (
+            <Link
+              key={m.month}
+              href={`/receipts?month=${m.month}`}
+              style={{ fontWeight: m.month === month ? 700 : 400 }}
+            >
+              {m.month}({m.count})
+            </Link>
+          ))}
+        </p>
+      ) : null}
+
+      {autoSwitched ? (
+        <p style={{ color: "#b8860b" }}>
+          {currentMonth()} 沒有單據,已自動顯示最近有資料的 <strong>{month}</strong>。
+        </p>
       ) : null}
 
       <form method="get" style={{ display: "flex", gap: "0.75rem", alignItems: "end", flexWrap: "wrap", marginBottom: "1rem" }}>
