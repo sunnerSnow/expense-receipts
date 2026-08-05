@@ -28,7 +28,19 @@ export default function LoginPage() {
             inputMode="email"
             placeholder="you@company.com"
           />
-          <span className="field-hint">用已建立的帳號 email 登入。</span>
+        </div>
+
+        <div className="field">
+          <label htmlFor="password">密碼</label>
+          <input
+            id="password"
+            className="input"
+            type="password"
+            name="password"
+            required
+            autoComplete="current-password"
+          />
+          <span className="field-hint">忘記密碼請管理者用 `pnpm user:password` 重設。</span>
         </div>
 
         {state.error ? <p className="error-text">{state.error}</p> : null}

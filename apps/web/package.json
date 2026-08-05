@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expense-receipts/auth": "workspace:*",
     "@expense-receipts/config": "workspace:*",
     "@expense-receipts/core": "workspace:*",
     "@expense-receipts/db": "workspace:*",

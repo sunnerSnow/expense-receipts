@@ -2,6 +2,7 @@
  * 開發用種子資料:預設分類 + 一個 admin 使用者。
  * 執行:pnpm --filter @expense-receipts/db seed
  */
+import { hashPassword } from "@expense-receipts/auth";
 import { createDb, categories, users } from "../index";
 
 // 與 packages/core/src/categories.ts 的 DEFAULT_CATEGORIES 同步
@@ -30,12 +31,29 @@ async function main() {
     .values(DEFAULT_CATEGORIES.map((c, i) => ({ ...c, sortOrder: i })))
     .onConflictDoNothing();
 
+  /**
+   * admin 帳號一併設密碼:沒有密碼的帳號登入不了(見 ADR-0006),
+   * seed 出一個進不去的帳號等於沒 seed。
+   *
+   * 密碼從 SEED_ADMIN_PASSWORD 讀,沒設就用開發預設值 —— 這個預設值會出現在
+   * 版控裡,**只能用於本機開發**,部署前務必用 `pnpm user:password` 換掉。
+   */
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "dev-admin-password-1234";
   await db
     .insert(users)
-    .values({ email: "admin@example.com", name: "Admin", role: "admin" })
+    .values({
+      email: "admin@example.com",
+      name: "Admin",
+      role: "admin",
+      passwordHash: await hashPassword(adminPassword),
+      passwordUpdatedAt: new Date(),
+    })
     .onConflictDoNothing();
 
   console.log("seed 完成");
+  if (!process.env.SEED_ADMIN_PASSWORD) {
+    console.log(`admin@example.com 的開發密碼:${adminPassword}(僅限本機,部署前請換掉)`);
+  }
   process.exit(0);
 }
 

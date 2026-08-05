@@ -35,6 +35,12 @@ export {
   type ExportRow,
   type ReceiptForExport,
 } from "./export";
+export {
+  validatePassword,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  type PasswordCheck,
+} from "./password";
 export { DEFAULT_CATEGORIES, type CategorySeed } from "./categories";
 export { amountToCents, formatAmount, formatCents, isValidAmount } from "./money";
 export {

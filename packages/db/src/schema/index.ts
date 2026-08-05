@@ -22,6 +22,14 @@ export const users = pgTable("users", {
   role: text("role", { enum: ["admin", "member"] })
     .notNull()
     .default("member"),
+  /**
+   * scrypt 雜湊(格式見 packages/auth)。
+   *
+   * 可為 NULL 只是為了讓 migration 不用停機 —— **NULL 的帳號不能登入**,
+   * 不是無密碼後門(見 ADR-0006)。要用 `pnpm user:password` 設一次。
+   */
+  passwordHash: text("password_hash"),
+  passwordUpdatedAt: timestamp("password_updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -21,11 +21,27 @@ pnpm install
 cp .env.example .env          # 填入 GEMINI_API_KEY(COMPANY_TAX_ID 選填)
 docker compose up -d          # PostgreSQL 17,host port 5433(避開 booking-crm 的 5432)
 pnpm db:migrate               # 套用 migrations
-pnpm db:seed                  # 預設分類 + admin 使用者
+pnpm db:seed                  # 預設分類 + admin 使用者(會印出開發用密碼)
 pnpm dev                      # Next.js dev server(http://localhost:3000)
 pnpm worker                   # 背景工作程序(另開終端;AI 辨識要靠它)
 pnpm url                      # 手機要連的話,用這個查網址
 ```
+
+### 帳號與密碼
+
+登入需要 email + 密碼(scrypt 雜湊,見 [ADR-0006](docs/adr/0006-password-auth.md))。
+`password_hash` 為 NULL 的帳號**不能登入** —— 這是安全預設值,不是後門。
+
+```bash
+# 建立帳號(密碼用環境變數傳,不會留在 shell 歷史)
+NEW_PASSWORD='一句夠長的密碼' pnpm user:password -- --email you@company.com --name 你的名字 --role admin
+
+# 不給 NEW_PASSWORD 就會隨機產生一組並印出來(只印一次)
+pnpm user:password -- --email member@company.com
+```
+
+使用者自己改密碼在 `/account`。沒有「忘記密碼」寄信重設 —— 沒有寄信管道,
+管理者用上面的指令重設更直接。
 
 ### 用手機操作
 
@@ -47,6 +63,7 @@ pnpm url                      # 手機要連的話,用這個查網址
 pnpm dev          # Next.js dev server
 pnpm worker       # pg-boss 背景工作程序(AI 辨識靠它)
 pnpm url          # 印出手機可連的網址(DHCP 換 IP 後就跑這個)
+pnpm user:password # 建立帳號或重設密碼(見下方)
 pnpm check:ai     # 檢查 Gemini 金鑰與模型是否可用(不必上傳單據)
 pnpm typecheck    # 全 workspace 型別檢查
 pnpm test         # 全 workspace 測試(vitest)

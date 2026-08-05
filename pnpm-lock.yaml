@@ -14,6 +14,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@expense-receipts/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@expense-receipts/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -101,6 +104,18 @@ importers:
         specifier: ^5.8.0
         version: 5.9.3
 
+  packages/auth:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.1)(tsx@4.23.1)
+
   packages/config:
     dependencies:
       zod:
@@ -125,6 +140,12 @@ importers:
 
   packages/db:
     dependencies:
+      '@expense-receipts/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@expense-receipts/core':
+        specifier: workspace:*
+        version: link:../core
       drizzle-orm:
         specifier: ^0.44.2
         version: 0.44.7(@types/pg@8.20.0)(pg@8.22.0)

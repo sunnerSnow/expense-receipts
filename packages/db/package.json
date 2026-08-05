@@ -10,9 +10,12 @@
     "migrate": "drizzle-kit migrate",
     "seed": "tsx src/seed/dev.ts",
     "studio": "drizzle-kit studio",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "user:password": "tsx src/scripts/set-password.ts"
   },
   "dependencies": {
+    "@expense-receipts/auth": "workspace:*",
+    "@expense-receipts/core": "workspace:*",
     "drizzle-orm": "^0.44.2",
     "pg": "^8.16.0"
   },

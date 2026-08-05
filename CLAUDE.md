@@ -13,9 +13,10 @@ packages/core   業務邏輯(純函式,禁止 import 任何 IO)—— QR 解析�
 packages/db     Drizzle schema + migrations + seed
 packages/config zod 環境變數驗證(parseEnv)+ 路徑解析(resolveFromRepoRoot)
 packages/queue  佇列名稱與 payload 型別(web send / worker work 共用契約)
+packages/auth   密碼雜湊(scrypt;只有 node 端會用,不可被 core 依賴)
 ```
 
-依賴方向:apps → core / db / config / queue。core 不依賴任何東西;db 與 core
+依賴方向:apps → core / db / config / queue / auth。core 不依賴任何東西;db 與 core
 互不依賴(共用 enum 手動同步,見 conventions 第 4 節)。apps 之間不得互相 import。
 
 ## 鐵律(違反 = 資料正確性或憑證合規事故,任何情況不可違反)
@@ -30,7 +31,9 @@ packages/queue  佇列名稱與 payload 型別(web send / worker work 共用契�
 5. 已匯出(exported)的單據不可修改、不可刪除;`export_batches` 只允許 INSERT
 6. 單據影像是報帳憑證:只增不刪,刪除單據紀錄也要保留影像檔
 7. 已套用的 migration 不可修改
-8. 密鑰(ANTHROPIC_API_KEY 等)只從環境變數讀,不得寫死、不得出現在 log
+8. 密鑰(GEMINI_API_KEY、SESSION_SECRET 等)只從環境變數讀,不得寫死、不得出現在 log
+9. 密碼一律經 `packages/auth` 的 scrypt 雜湊後才進 DB;`password_hash` 為 NULL
+   的帳號不得登入(見 ADR-0006)。登入失敗訊息不得分辨帳號是否存在
 
 ## 修改架構前必讀
 

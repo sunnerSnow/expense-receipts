@@ -24,6 +24,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/receipts/new" className="nav-cta spread">
           ＋ 上傳
         </Link>
+        <Link href="/account" className="nav-link">
+          {user.name}
+        </Link>
         <form action={logout}>
           <button type="submit" className="btn btn-quiet" aria-label={`登出 ${user.name}`}>
             登出

@@ -59,6 +59,16 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
 - 對外提供檔案下載時,路徑一律取自 DB 並驗證落在設定的目錄內(防路徑逃逸)
 - UI 上要明確寫出「此操作不可逆」與影響筆數
 
+## 4c. 認證
+
+- 密碼雜湊只用 `packages/auth`(Node 內建 scrypt);**不要放進 `packages/core`**
+  —— core 會被瀏覽器端 bundle,import `node:crypto` 會編譯失敗
+- 密碼規則走 core 的 `validatePassword`,web 表單與 CLI 共用同一套判斷
+- 登入失敗一律回同一句話,且帳號不存在時也要跑 `burnPasswordTime`
+  (否則回應時間會洩漏帳號是否存在)
+- 新增使用者或重設密碼:`pnpm user:password -- --email x`,密碼用 `NEW_PASSWORD`
+  環境變數傳(引數會留在 shell 歷史)
+
 ## 5. 單據影像
 
 - 存 `UPLOAD_DIR`(預設 `./uploads`,已 gitignore),檔名用 receipt id

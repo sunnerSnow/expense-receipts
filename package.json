@@ -19,6 +19,7 @@
     "db:generate": "dotenv -e .env -- pnpm --filter @expense-receipts/db generate",
     "db:migrate": "dotenv -e .env -- pnpm --filter @expense-receipts/db migrate",
     "db:seed": "dotenv -e .env -- pnpm --filter @expense-receipts/db seed",
+    "user:password": "dotenv -e .env -- pnpm --filter @expense-receipts/db user:password",
     "db:studio": "dotenv -e .env -- pnpm --filter @expense-receipts/db studio"
   },
   "devDependencies": {
