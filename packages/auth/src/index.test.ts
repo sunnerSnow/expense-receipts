@@ -86,3 +86,29 @@ describe("burnPasswordTime", () => {
     expect(fake).toBeGreaterThan(real * 0.2);
   });
 });
+
+describe("generatePassword", () => {
+  it("格式是三段五碼,用連字號分隔", async () => {
+    const { generatePassword } = await import("./index");
+    const pw = generatePassword();
+    expect(pw).toMatch(/^[a-z2-9]{5}-[a-z2-9]{5}-[a-z2-9]{5}$/);
+  });
+
+  it("不含容易看錯的字元(0 O 1 l I)", async () => {
+    const { generatePassword } = await import("./index");
+    const joined = Array.from({ length: 40 }, () => generatePassword()).join("");
+    expect(joined).not.toMatch(/[0O1lI]/);
+  });
+
+  it("每次都不一樣", async () => {
+    const { generatePassword } = await import("./index");
+    const set = new Set(Array.from({ length: 50 }, () => generatePassword()));
+    expect(set.size).toBe(50);
+  });
+
+  it("產生的密碼本身符合密碼規則(至少 10 字)", async () => {
+    const { generatePassword } = await import("./index");
+    // 17 字元(15 碼 + 2 個連字號)
+    expect(generatePassword().length).toBe(17);
+  });
+});

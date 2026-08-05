@@ -66,8 +66,12 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
 - 密碼規則走 core 的 `validatePassword`,web 表單與 CLI 共用同一套判斷
 - 登入失敗一律回同一句話,且帳號不存在時也要跑 `burnPasswordTime`
   (否則回應時間會洩漏帳號是否存在)
-- 新增使用者或重設密碼:`pnpm user:password -- --email x`,密碼用 `NEW_PASSWORD`
-  環境變數傳(引數會留在 shell 歷史)
+- 新增使用者或重設密碼:網頁 `/users`(僅管理者);開機情境用
+  `pnpm user:password -- --email x`,密碼用 `NEW_PASSWORD` 環境變數傳
+  (引數會留在 shell 歷史)
+- **權限檢查每個 server action 都要自己做一次**(`requireAdmin()`),不能只靠頁面擋
+  —— server action 是可以被直接呼叫的端點,「畫面上沒有按鈕」不等於「不能被觸發」
+- 產生的密碼只在該次回應顯示一次,不存明碼、不寫 log
 
 ## 5. 單據影像
 

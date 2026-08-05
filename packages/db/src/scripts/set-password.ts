@@ -8,9 +8,8 @@
  *
  * 「忘記密碼」就用這個重設(見 ADR-0006:沒有寄信管道,不做寄信重設)。
  */
-import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { hashPassword } from "@expense-receipts/auth";
+import { generatePassword, hashPassword } from "@expense-receipts/auth";
 import { validatePassword } from "@expense-receipts/core";
 import { createDb, users } from "../index";
 
@@ -20,15 +19,6 @@ function arg(name: string): string | undefined {
   if (i >= 0 && process.argv[i + 1]) return process.argv[i + 1];
   const inline = process.argv.find((a) => a.startsWith(`${flag}=`));
   return inline?.slice(flag.length + 1);
-}
-
-/** 好唸好打的隨機密碼(避開容易看錯的 0/O/1/l/I) */
-function generatePassword(): string {
-  const alphabet = "abcdefghijkmnpqrstuvwxyz23456789";
-  const bytes = randomBytes(20);
-  const chars = [...bytes].map((b) => alphabet[b % alphabet.length]);
-  // 分段比較好念給人聽
-  return [chars.slice(0, 5).join(""), chars.slice(5, 10).join(""), chars.slice(10, 15).join("")].join("-");
 }
 
 async function main() {

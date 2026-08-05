@@ -802,3 +802,18 @@ summary {
 summary::marker {
   color: var(--amber-600);
 }
+
+/* 一次性顯示的產生密碼:要好讀、好選取(使用者得手抄或複製給別人) */
+.generated-password {
+  display: block;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-field);
+  background: var(--surface);
+  border: 1px dashed var(--line-strong);
+  color: var(--ink-900);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  user-select: all;
+  overflow-wrap: anywhere;
+}

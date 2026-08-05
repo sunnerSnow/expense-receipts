@@ -123,3 +123,36 @@ const DUMMY_HASH = [PREFIX, PARAMS.N, PARAMS.r, PARAMS.p, "AAAAAAAAAAAAAAAAAAAAA
 export async function burnPasswordTime(plain: string): Promise<void> {
   await verifyPassword(plain, DUMMY_HASH);
 }
+
+/**
+ * 產生可以念給人聽的隨機密碼。
+ *
+ * 沒有寄信管道(見 ADR-0006),所以初始密碼與重設密碼都得由管理者轉達 ——
+ * 密碼要好念、好打、不會看錯。因此:
+ * - 排除容易混淆的字元(0/O、1/l/I)
+ * - 用連字號分段,口述與手打都比一長串容易
+ * - 取樣避開 modulo bias(雖然這裡影響極小,但沒理由寫成有偏差的版本)
+ */
+const SAFE_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789"; // 32 個字元
+const GENERATED_GROUPS = 3;
+const GENERATED_GROUP_SIZE = 5;
+
+export function generatePassword(): string {
+  const total = GENERATED_GROUPS * GENERATED_GROUP_SIZE;
+  const chars: string[] = [];
+  // 32 整除 256,所以直接取 modulo 沒有偏差;仍明確寫出這個前提
+  if (256 % SAFE_ALPHABET.length !== 0) throw new Error("字元表長度必須整除 256 才無取樣偏差");
+
+  while (chars.length < total) {
+    for (const byte of randomBytes(total)) {
+      chars.push(SAFE_ALPHABET[byte % SAFE_ALPHABET.length] as string);
+      if (chars.length === total) break;
+    }
+  }
+
+  const groups: string[] = [];
+  for (let i = 0; i < GENERATED_GROUPS; i += 1) {
+    groups.push(chars.slice(i * GENERATED_GROUP_SIZE, (i + 1) * GENERATED_GROUP_SIZE).join(""));
+  }
+  return groups.join("-");
+}

@@ -38,3 +38,17 @@ export async function requireUser(): Promise<CurrentUser> {
   if (!user) redirect("/login");
   return user;
 }
+
+/**
+ * 要求管理者權限。
+ *
+ * **每個 server action 都要自己呼叫一次**,不能只靠頁面擋 —— server action 是
+ * 可以被直接呼叫的端點,「畫面上沒有按鈕」不等於「動作不能被觸發」。
+ *
+ * 非管理者導回單據列表而不是回錯誤:對方本來就不該知道這個頁面存在。
+ */
+export async function requireAdmin(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (user.role !== "admin") redirect("/receipts");
+  return user;
+}

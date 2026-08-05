@@ -32,6 +32,11 @@ pnpm url                      # 手機要連的話,用這個查網址
 登入需要 email + 密碼(scrypt 雜湊,見 [ADR-0006](docs/adr/0006-password-auth.md))。
 `password_hash` 為 NULL 的帳號**不能登入** —— 這是安全預設值,不是後門。
 
+有了第一個管理者帳號之後,**日常增減使用者請用網頁**:登入後導覽列的「使用者」
+(僅管理者可見)可以新增帳號、重設密碼、切換權限,產生的密碼會顯示一次讓你轉達。
+
+下面的 CLI 留給「還沒有任何管理者帳號」的開機情境:
+
 ```bash
 # 建立帳號(密碼用環境變數傳,不會留在 shell 歷史)
 NEW_PASSWORD='一句夠長的密碼' pnpm user:password -- --email you@company.com --name 你的名字 --role admin
@@ -83,10 +88,11 @@ packages/core     業務邏輯(純函式,禁止 IO):QR 解析、扣抵判斷、�
 packages/db       Drizzle schema + migrations + seed
 packages/config   zod 環境變數驗證(parseEnv)+ 路徑解析
 packages/queue    佇列名稱與 payload 型別(web 與 worker 的共用契約)
+packages/auth     密碼雜湊與隨機密碼產生(scrypt;只有 node 端會用)
 ```
 
-依賴方向:apps → core / db / config / queue。core 不依賴任何東西,db 與 core
-互不依賴,apps 之間不互相 import。
+依賴方向:apps → core / db / config / queue / auth。core 不依賴任何東西,
+db 與 core 互不依賴,apps 之間不互相 import。
 
 ## 資料流
 

@@ -39,10 +39,12 @@ async function main() {
    * 版控裡,**只能用於本機開發**,部署前務必用 `pnpm user:password` 換掉。
    */
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "dev-admin-password-1234";
+  // email 也可設定:避免把個人 email 寫進版控,也讓部署腳本能直接建正式帳號
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? "admin@example.com").trim().toLowerCase();
   await db
     .insert(users)
     .values({
-      email: "admin@example.com",
+      email: adminEmail,
       name: "Admin",
       role: "admin",
       passwordHash: await hashPassword(adminPassword),
@@ -52,7 +54,7 @@ async function main() {
 
   console.log("seed 完成");
   if (!process.env.SEED_ADMIN_PASSWORD) {
-    console.log(`admin@example.com 的開發密碼:${adminPassword}(僅限本機,部署前請換掉)`);
+    console.log(`${adminEmail} 的開發密碼:${adminPassword}(僅限本機,部署前請換掉)`);
   }
   process.exit(0);
 }
