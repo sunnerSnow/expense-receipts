@@ -24,13 +24,29 @@ pnpm db:migrate               # 套用 migrations
 pnpm db:seed                  # 預設分類 + admin 使用者
 pnpm dev                      # Next.js dev server(http://localhost:3000)
 pnpm worker                   # 背景工作程序(另開終端;AI 辨識要靠它)
+pnpm url                      # 手機要連的話,用這個查網址
 ```
+
+### 用手機操作
+
+拍照上傳是手機情境,所以要從手機連到這台電腦(同一個 Wi-Fi):
+
+1. `pnpm url` 取得網址(例如 `http://192.168.0.135:3000`)
+2. 手機瀏覽器開它,用已註冊的 email 登入
+3. iOS Safari 可「分享 → 加入主畫面」,之後像 App 一樣開啟
+
+**IP 會變**:DHCP 每次分配的位址可能不同,連不上就重跑 `pnpm url`。
+要固定的話在路由器上為這台電腦設 DHCP 保留位址。
+
+`next dev` 自己印的 Network 網址在有 WSL / Docker 虛擬網卡的機器上常是連不到的
+`172.x` 位址,所以用 `pnpm url` 而不是照抄它。
 
 ## 常用指令
 
 ```bash
 pnpm dev          # Next.js dev server
 pnpm worker       # pg-boss 背景工作程序(AI 辨識靠它)
+pnpm url          # 印出手機可連的網址(DHCP 換 IP 後就跑這個)
 pnpm check:ai     # 檢查 Gemini 金鑰與模型是否可用(不必上傳單據)
 pnpm typecheck    # 全 workspace 型別檢查
 pnpm test         # 全 workspace 測試(vitest)
