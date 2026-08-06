@@ -106,6 +106,13 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
 - 新增元件 class 時注意串接權重:`.field > span` 這種型別選擇器(0,1,1)會蓋掉
   `.field-hint`(0,1,0),已踩過一次
 - 主要動作用 `.actions-bar` 吸底:手機上影像 + 十幾個欄位會把按鈕推到螢幕外
+- **多欄排版一律 `minmax(0, 1fr)`,不要寫 `1fr`**:`1fr` 的下限是 min-content,
+  軌道會被裡面的元素撐開而超出卡片。表單控件也要 `min-width: 0`
+- **`input[type=date]` 要自己壓平**:原生 chrome 的 min-content 寬度(日期文字 +
+  日曆圖示)比半格寬,內部行高又比一般文字高 —— 放進 `.grid-2` 會橫向溢出、
+  而且比隔壁的 select 高一截(實測 48.8px vs 44px)。作法是
+  `appearance: none` + 固定 `height` + `display: flex; align-items: center`
+  (固定高度才鎖得住,flex 是為了讓值仍垂直居中)
 
 ## 6b. 期間篩選的預設值
 

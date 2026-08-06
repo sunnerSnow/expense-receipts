@@ -371,6 +371,11 @@ a:hover {
 .input,
 .select {
   width: 100%;
+  /*
+    grid / flex 子項的預設寬度下限是 min-content,而 input[type=date] 的
+    min-content(日期文字 + 原生日曆圖示)比半格還寬,不歸零會把版面撐爆。
+  */
+  min-width: 0;
   min-height: 44px;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--line-strong);
@@ -396,9 +401,38 @@ a:hover {
   font-size: 0.9375rem;
 }
 
+/*
+  日期欄位要跟隔壁的「單據類型」select 一樣大。
+
+  iOS Safari 用原生 chrome 畫 input[type=date]:自己決定高度與內距、值置中、
+  並帶一個撐寬度的內部元素,結果外框比 select 高一截又橫向溢出卡片。
+  關掉 appearance 之後才會吃上面 .input 的盒模型。
+*/
+.input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  /*
+    原生日期編輯器的內部行高比一般文字高,只設 min-height 會被撐到 48.8px、
+    比 select 高一截。改成固定 44px + flex 置中:高度鎖死,值仍垂直居中。
+  */
+  display: flex;
+  align-items: center;
+  height: 44px;
+}
+
+/* iOS 的日期值預設置中且帶額外 margin,靠左才跟其他欄位的文字對齊 */
+.input[type="date"]::-webkit-date-and-time-value {
+  margin: 0;
+  text-align: left;
+}
+
 .grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /*
+    用 minmax(0, 1fr) 而不是 1fr:1fr 的下限是 min-content,
+    軌道裡放 input[type=date] 時會被撐開而超出卡片。
+  */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
