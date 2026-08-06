@@ -16,8 +16,10 @@ packages/queue  佇列名稱與 payload 型別(web send / worker work 共用契�
 packages/auth   密碼雜湊(scrypt;只有 node 端會用,不可被 core 依賴)
 ```
 
-依賴方向:apps → core / db / config / queue / auth。core 不依賴任何東西;db 與 core
-互不依賴(共用 enum 手動同步,見 conventions 第 4 節)。apps 之間不得互相 import。
+依賴方向:apps → core / db / config / queue / auth,以及 config → core
+(`resolveStoredFile` 要用 core 的 `toStorageKey`,見 ADR-0007)。**core 不依賴任何
+東西**,依賴圖保持 DAG;db 與 core 互不依賴(共用 enum 手動同步,見 conventions
+第 4 節)。apps 之間不得互相 import。
 
 ## 鐵律(違反 = 資料正確性或憑證合規事故,任何情況不可違反)
 
@@ -29,7 +31,9 @@ packages/auth   密碼雜湊(scrypt;只有 node 端會用,不可被 core 依賴)
    欄位,與 `status` 狀態機分離 —— worker 回填欄位時不得碰 `status`
 4. `receipts_invoice_number_unique` 部分唯一索引(發票號碼去重)不可移除
 5. 已匯出(exported)的單據不可修改、不可刪除;`export_batches` 只允許 INSERT
-6. 單據影像是報帳憑證:只增不刪,刪除單據紀錄也要保留影像檔
+6. 單據影像是報帳憑證:只增不刪,刪除單據紀錄也要保留影像檔。影像/匯出檔的位置
+   一律存**相對鍵值**,讀取一律經 `resolveStoredFile()` —— 不得直接
+   `readFile(row.imagePath)`(舊資料是絕對路徑,見 ADR-0007)
 7. 已套用的 migration 不可修改
 8. 密鑰(GEMINI_API_KEY、SESSION_SECRET 等)只從環境變數讀,不得寫死、不得出現在 log
 9. 密碼一律經 `packages/auth` 的 scrypt 雜湊後才進 DB;`password_hash` 為 NULL

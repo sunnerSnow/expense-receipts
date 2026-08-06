@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { eq } from "drizzle-orm";
 import { exportBatches } from "@expense-receipts/db";
 import { exportFileName } from "@expense-receipts/core";
+import { resolveStoredFile } from "@expense-receipts/config";
 import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
@@ -40,12 +40,10 @@ export async function GET(
   const filePath = which === "zip" ? batch.imageZipPath : batch.filePath;
   if (!filePath) return new Response("not found", { status: 404 });
 
-  // 路徑逃逸防護:必須在 EXPORT_DIR 底下
-  const resolved = path.resolve(filePath);
-  const root = path.resolve(env.EXPORT_DIR);
-  if (resolved !== root && !resolved.startsWith(root + path.sep)) {
-    return new Response("forbidden", { status: 403 });
-  }
+  // DB 裡可能是相對鍵值(新)或某台機器上的絕對路徑(舊),都換算到目前的
+  // EXPORT_DIR;解析不出來或會逃出根目錄一律拒絕(見 ADR-0007)
+  const resolved = resolveStoredFile(filePath, env.EXPORT_DIR);
+  if (resolved === null) return new Response("forbidden", { status: 403 });
 
   let bytes: Buffer;
   try {

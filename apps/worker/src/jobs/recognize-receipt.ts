@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { and, asc, eq } from "drizzle-orm";
 import { categories, receipts, type Db } from "@expense-receipts/db";
+import { resolveStoredFile } from "@expense-receipts/config";
 import {
   buildRecognitionJsonSchema,
   buildRecognitionPrompt,
@@ -103,9 +104,16 @@ export async function recognizeReceiptJob(deps: {
 
   const mimeType = MIME_BY_EXT[path.extname(receipt.imagePath).toLowerCase()] ?? "image/jpeg";
 
+  // DB 裡可能是相對鍵值(新)或某台機器上的絕對路徑(舊),都換算到目前的
+  // UPLOAD_DIR(見 ADR-0007)
+  const imageFile = resolveStoredFile(receipt.imagePath, env.UPLOAD_DIR);
+  if (imageFile === null) {
+    return markFailed(db, receipt.id, `影像位置無法解析:${receipt.imagePath}`);
+  }
+
   let imageBase64: string;
   try {
-    const bytes = await readFile(receipt.imagePath);
+    const bytes = await readFile(imageFile);
     // Gemini 的 inline 影像請求(含提示詞)總量上限 20MB;base64 會膨脹約 1/3。
     // 先在這裡擋下並給人看得懂的訊息,而不是讓 API 回一個難解的錯誤。
     if (bytes.byteLength > MAX_INLINE_IMAGE_BYTES) {
@@ -119,11 +127,11 @@ export async function recognizeReceiptJob(deps: {
     }
     imageBase64 = bytes.toString("base64");
   } catch {
-    // 影像路徑相對於執行目錄;worker 與 web 的 cwd 不同時容易踩到,訊息要能指出方向
+    // web 與 worker 必須指向同一個 UPLOAD_DIR,不然會「上傳得到、辨識讀不到」
     return markFailed(
       db,
       receipt.id,
-      `讀不到影像檔:${receipt.imagePath}(確認 worker 的 UPLOAD_DIR=${env.UPLOAD_DIR} 與 web 指向同一處)`,
+      `讀不到影像檔:${imageFile}(確認 worker 的 UPLOAD_DIR=${env.UPLOAD_DIR} 與 web 指向同一處)`,
     );
   }
 

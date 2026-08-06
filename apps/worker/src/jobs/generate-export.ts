@@ -14,6 +14,7 @@ import {
   type ExportBundle,
   type ReceiptForExport,
 } from "@expense-receipts/core";
+import { resolveStoredFile } from "@expense-receipts/config";
 import type { GenerateExportPayload } from "@expense-receipts/queue";
 import { env } from "../env";
 
@@ -32,15 +33,21 @@ function monthBounds(year: number, month: number): { start: string; next: string
 
 /** 把影像打包成 zip;沒有任何影像時回 null(不產生空 zip) */
 async function writeImageZip(bundle: ExportBundle, zipPath: string): Promise<string | null> {
-  const withImage = bundle.rows.filter((r) => r.imagePath !== null && r.imageFileName !== "");
+  // 影像位置在 DB 裡可能是相對鍵值(新)或絕對路徑(舊),都換算到目前的
+  // UPLOAD_DIR;解析不出來的就當作沒有影像(見 ADR-0007)
+  const withImage = bundle.rows
+    .filter((r) => r.imagePath !== null && r.imageFileName !== "")
+    .map((r) => ({ row: r, file: resolveStoredFile(r.imagePath as string, env.UPLOAD_DIR) }))
+    .filter((x): x is { row: (typeof bundle.rows)[number]; file: string } => x.file !== null);
+
   if (withImage.length === 0) return null;
 
   const archive = new ZipArchive({ zlib: { level: 9 } });
   const out = createWriteStream(zipPath);
 
-  for (const row of withImage) {
+  for (const { row, file } of withImage) {
     // 檔名用清單的流水號前綴,會計看第 007 列就找 007 開頭那張
-    archive.file(row.imagePath as string, { name: row.imageFileName });
+    archive.file(file, { name: row.imageFileName });
   }
   // finalize 不要 await 在 pipeline 之前,否則資料寫不進串流
   const done = pipeline(archive, out);
@@ -109,7 +116,19 @@ export async function generateExportJob(deps: {
 
   const bundle = buildExportRows(rows as ReceiptForExport[]);
 
-  const dir = path.join(env.EXPORT_DIR, `${year}-${String(month).padStart(2, "0")}`);
+  /*
+    產出物的位置分兩種表示:
+    - `*Key` 是存進 DB 的相對鍵值(如 `2026-07/報帳清單_2026-07.csv`)
+    - `*Path` 是這台機器上的實際路徑,只用來寫檔
+
+    存鍵值不存絕對路徑:專案換位置之後舊的絕對路徑會全部失效,而 export_batches
+    受鐵律 5 保護只允許 INSERT,事後改不了。見 ADR-0007。
+  */
+  const period = `${year}-${String(month).padStart(2, "0")}`;
+  const csvKey = `${period}/${exportFileName(year, month, "csv")}`;
+  const zipKey = `${period}/${exportFileName(year, month, "zip")}`;
+
+  const dir = path.join(env.EXPORT_DIR, period);
   await mkdir(dir, { recursive: true });
   const csvPath = path.join(dir, exportFileName(year, month, "csv"));
   const zipTarget = path.join(dir, exportFileName(year, month, "zip"));
@@ -127,8 +146,8 @@ export async function generateExportJob(deps: {
         periodYear: year,
         periodMonth: month,
         createdBy: payload.createdBy,
-        filePath: csvPath,
-        imageZipPath: zipPath,
+        filePath: csvKey,
+        imageZipPath: zipPath === null ? null : zipKey,
         receiptCount: bundle.count,
         currencyTotals: bundle.currencyTotals,
       })

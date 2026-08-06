@@ -170,13 +170,20 @@ docker compose exec -T db pg_dump -U app expense_receipts > backup.sql
 | 手機連不到 | 電腦是不是睡著了 / Tailscale 是不是斷了(`tailscale status`) |
 | 資料庫連不上 | Docker Desktop 有沒有啟動(`docker compose ps`) |
 
-## 尚未解決:影像路徑寫死在資料庫裡
+## 換機器 / 換路徑
 
-`receipts.image_path` 與 `export_batches.file_path` 存的是**絕對路徑**
-(`C:\Users\...\uploads\xxx.jpg`)。只要儲存位置換地方 —— 搬到容器、搬到 VPS、
-換物件儲存 —— 舊資料就讀不到了。
+**專案放哪都可以** —— 資料庫裡的檔案位置會在讀取時正規化成目前的
+`UPLOAD_DIR` / `EXPORT_DIR`(見 [ADR-0007](adr/0007-storage-relative-paths.md))。
+早期資料存的是舊機器的絕對路徑,一樣讀得到,不需要改資料庫。
 
-這是目前**唯一**擋住「把 web/worker 也放進 Docker」與「搬上 VPS」的東西。
-修法是改存相對於 `UPLOAD_DIR` / `EXPORT_DIR` 的路徑,但 `export_batches`
-受鐵律 5 保護(只允許 INSERT),不能直接改既有資料 —— 要先寫 ADR 決定
-相容策略再動手。
+搬機器要帶走的四樣東西:
+
+| 內容 | 位置 |
+|---|---|
+| 程式碼 | GitHub(clone 就好) |
+| `.env` | **不在 git 裡,只有本機一份** |
+| 資料庫 | `docker compose exec -T db sh -c "pg_dump -U app expense_receipts > /tmp/db.sql"` 再 `docker cp` 出來 |
+| `uploads/` 與 `exports/` | 直接複製 |
+
+還原後跑 `pnpm install` → `pnpm build` → `install-autostart.ps1`,不要跑
+`pnpm db:seed`(dump 裡已經有使用者與分類)。

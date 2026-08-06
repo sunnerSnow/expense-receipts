@@ -32,7 +32,7 @@ users ──< receipts >── categories
 | `invoice_number` | 發票號碼;部分唯一索引做去重(NULL 不受限,收據可無號碼) |
 | `amount` / `tax_amount` | 含稅總額 / 稅額,numeric(12,2);**國外單據存原幣**,幣別看 currency |
 | `deductibility` | deductible / expense_only / review,由 core 的 assessDeductibility 判定;`COMPANY_TAX_ID` 未設定時有買方統編的統一發票一律 review |
-| `image_path` | 憑證影像;只增不刪 |
+| `image_path` | 憑證影像的**相對鍵值**(相對於 `UPLOAD_DIR`,如 `<uuid>.jpg`);只增不刪。早期資料存的是絕對路徑,讀取時由 `resolveStoredFile()` 正規化,兩種格式永久並存(ADR-0007) |
 | `raw_data` | 辨識原始資料(QR 原文,或 AI 的供應商/模型/token 用量/回傳 JSON),追溯用 |
 | `recognition_status` | none / queued / succeeded / failed —— AI 工作生命週期,與 `status` 分離 |
 | `recognition_error` | 辨識失敗原因(給人看的訊息) |
@@ -46,8 +46,8 @@ users ──< receipts >── categories
 | 欄位 | 意義 |
 |---|---|
 | `period_year` / `period_month` | 匯出的月份 |
-| `file_path` | CSV 清單路徑 |
-| `image_zip_path` | 憑證影像 zip 路徑(該批完全沒有影像時為 NULL) |
+| `file_path` | CSV 清單的相對鍵值(相對於 `EXPORT_DIR`,如 `2026-07/報帳清單_2026-07.csv`);早期資料是絕對路徑,讀取時正規化(ADR-0007) |
+| `image_zip_path` | 憑證影像 zip 的相對鍵值(該批完全沒有影像時為 NULL) |
 | `receipt_count` | 這批單據筆數 |
 | `currency_totals` | 各幣別小計,如 `{"TWD":"1373.00","THB":"547.00"}`;不換算 |
 

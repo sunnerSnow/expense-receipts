@@ -81,10 +81,19 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
 - 影像是報帳憑證:任何刪除操作只刪資料列,不刪檔案
 - 影像不進 git、不進 log
 - 月結匯出產出物存 `EXPORT_DIR`(已 gitignore),路徑記在 `export_batches`
-- **已知債:`image_path` 與 `export_batches.file_path` 存的是絕對路徑**
-  (`C:\Users\...\uploads\x.jpg`)。儲存位置一換(容器、VPS、物件儲存)舊資料
-  就讀不到。要改成相對於 `UPLOAD_DIR` / `EXPORT_DIR`,但 `export_batches`
-  受鐵律 5 保護不能改既有列 —— 動之前先寫 ADR 決定相容策略
+
+### 5a. 檔案位置一律存「相對鍵值」(ADR-0007)
+
+- **寫入**:存相對於儲存根目錄的鍵值,用 `/` 分隔 ——
+  `<uuid>.jpg`、`2026-07/報帳清單_2026-07.csv`。**不要存絕對路徑**,
+  專案一換位置(換機器、容器、VPS)就全部失效,而影像是憑證
+- **讀取**:一律經 `resolveStoredFile(stored, rootDir)`(`@expense-receipts/config`)
+  取得實際路徑。**絕對不要直接 `readFile(row.imagePath)`** —— 資料庫裡
+  舊資料是絕對路徑,新資料是鍵值,兩種永久並存
+- `resolveStoredFile()` 同時是路徑逃逸防線(拒絕 `..`、磁碟機代號,並確認結果
+  落在根目錄內),新增下載/讀檔的 route 不必自己再寫一遍
+- 判斷邏輯是 core 的 `toStorageKey()`(純字串,不碰 `node:path`,因為 core 會被
+  瀏覽器端 bundle);組路徑的部分在 config
 
 ## 6. 金額
 
@@ -151,6 +160,10 @@ NEXT_DIST_DIR=.next-verify npx next dev -p 3005   # 用另一個輸出目錄與 
 ```
 
 `distDir` 已可用 `NEXT_DIST_DIR` 覆寫(見 apps/web/next.config.ts)。
+
+副作用要記得清:Next 會自動把 `<distDir>/types/**/*.ts` 加進
+`apps/web/tsconfig.json` 的 `include`。驗證完把那一行拿掉,別讓暫時目錄
+進版控。
 
 ## 7d. 前端行為要在真實瀏覽器裡驗
 

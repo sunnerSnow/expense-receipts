@@ -60,12 +60,17 @@ function isDocType(v: string): v is ReceiptDocType {
   return (RECEIPT_DOC_TYPES as readonly string[]).includes(v);
 }
 
-/** 影像落地;回傳寫入的路徑 */
+/**
+ * 影像落地;回傳**存進資料庫的鍵值**(相對於 UPLOAD_DIR,不是絕對路徑)。
+ *
+ * 存鍵值而不是絕對路徑:專案換位置(換電腦、換使用者名稱、搬進容器)之後,
+ * 絕對路徑會全部失效 —— 而影像是報帳憑證,讀不到等於憑證遺失。見 ADR-0007。
+ */
 async function saveImage(image: File, id: string): Promise<string> {
-  const filePath = path.join(env.UPLOAD_DIR, `${id}.${extFromType(image.type)}`);
+  const key = `${id}.${extFromType(image.type)}`;
   await mkdir(env.UPLOAD_DIR, { recursive: true });
-  await writeFile(filePath, Buffer.from(await image.arrayBuffer()));
-  return filePath;
+  await writeFile(path.join(env.UPLOAD_DIR, key), Buffer.from(await image.arrayBuffer()));
+  return key;
 }
 
 /**

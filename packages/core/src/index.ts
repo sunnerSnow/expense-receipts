@@ -47,6 +47,7 @@ export {
   PASSWORD_MIN_LENGTH,
   type PasswordCheck,
 } from "./password";
+export { toStorageKey } from "./storage-path";
 export { DEFAULT_CATEGORIES, type CategorySeed } from "./categories";
 export { amountToCents, formatAmount, formatCents, isValidAmount } from "./money";
 export {
