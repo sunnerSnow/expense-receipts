@@ -1,5 +1,6 @@
 import PgBoss from "pg-boss";
-import { createDb } from "@expense-receipts/db";
+import { sql } from "drizzle-orm";
+import { createDb, type Db } from "@expense-receipts/db";
 import {
   QUEUES,
   RECOGNIZE_RETRY_OPTIONS,
@@ -12,9 +13,44 @@ import { recoverLostRecognitions } from "./jobs/recover-recognitions";
 import { markRecognitionFailed, recognizeReceiptJob } from "./jobs/recognize-receipt";
 import { createRecognizer } from "./recognizer";
 
+/** 等資料庫可用才往下走;回傳等待秒數 */
+async function waitForDatabase(db: Db, timeoutMs = 120_000): Promise<number> {
+  /*
+    為什麼要等:開機自動啟動時,worker 幾乎一定比 Docker Desktop 裡的 Postgres
+    早一步就緒。直接連會失敗、程序退出,使用者看到的是「worker 沒起來」而且
+    沒有明顯原因 —— 但其實只要晚十秒就好。
+  */
+  const startedAt = Date.now();
+  const deadline = startedAt + timeoutMs;
+  let announced = false;
+
+  for (;;) {
+    try {
+      await db.execute(sql`select 1`);
+      return Math.round((Date.now() - startedAt) / 1000);
+    } catch (err) {
+      if (Date.now() >= deadline) {
+        throw new Error(
+          `等不到資料庫(已等 ${Math.round(timeoutMs / 1000)} 秒):${
+            (err as Error)?.message ?? "未知錯誤"
+          }`,
+        );
+      }
+      if (!announced) {
+        console.log("[啟動] 資料庫還沒就緒,等待中…");
+        announced = true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+}
+
 async function main() {
   const db = createDb(env.DATABASE_URL);
   const recognizer = createRecognizer();
+
+  const waited = await waitForDatabase(db);
+  if (waited > 0) console.log(`[啟動] 資料庫已就緒(等了 ${waited} 秒)`);
 
   const boss = new PgBoss(env.DATABASE_URL);
   boss.on("error", (err) => console.error("[pg-boss]", err));

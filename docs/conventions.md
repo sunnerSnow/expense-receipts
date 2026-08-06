@@ -27,7 +27,9 @@ ADR 記歷史,這裡記「現在怎麼寫」。慣例成形時更新。
 - 各 app 定義自己的 env schema(web 在 `lib/env.ts`、worker 在 `src/env.ts`)
 - 新增變數時同步更新 `.env.example`(含註解說明用途與哪個 Phase 需要)
 - `.env` 只有 monorepo 根目錄一份;root 的 npm scripts 用 `dotenv -e .env --`
-  注入(pnpm --filter 會把 cwd 換成 package 目錄,Next/tsx 不會自己往上找)
+  注入(pnpm --filter 會把 cwd 換成 package 目錄,Next/tsx 不會自己往上找)。
+  **`build` 也要包** —— `next build` 的 collect page data 階段會真的執行
+  server 模組,少了環境變數會在這一步失敗(踩過一次)
 - 路徑類變數(如 `UPLOAD_DIR`)用 `resolveFromRepoRoot()` 解析:web 與 worker
   的 cwd 不同,相對路徑會指到不同資料夾
 - `COMPANY_TAX_ID` 是選填(留空 = 不做扣抵比對);env 層把空字串正規化成 `null`,
@@ -79,6 +81,10 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
 - 影像是報帳憑證:任何刪除操作只刪資料列,不刪檔案
 - 影像不進 git、不進 log
 - 月結匯出產出物存 `EXPORT_DIR`(已 gitignore),路徑記在 `export_batches`
+- **已知債:`image_path` 與 `export_batches.file_path` 存的是絕對路徑**
+  (`C:\Users\...\uploads\x.jpg`)。儲存位置一換(容器、VPS、物件儲存)舊資料
+  就讀不到。要改成相對於 `UPLOAD_DIR` / `EXPORT_DIR`,但 `export_batches`
+  受鐵律 5 保護不能改既有列 —— 動之前先寫 ADR 決定相容策略
 
 ## 6. 金額
 
@@ -158,6 +164,14 @@ chrome --headless=new --remote-debugging-port=9222 about:blank
 
 至少要驗:目標元素有 `__react*` 屬性(代表已 hydrate)、`Network.loadingFailed`
 沒有 script/stylesheet、以及互動後畫面真的變了。
+
+## 7e. Windows 指令稿
+
+- **含非 ASCII 字元的 `.ps1` 必須存成 UTF-8 with BOM**。Windows PowerShell 5.1
+  沒有 BOM 就當 ANSI 讀,中文註解會變亂碼、破折號與引號被當成語法字元 ——
+  整個檔案解析失敗,錯誤訊息還指向不相干的行。踩過一次
+- 自動啟動用工作排程(登入時觸發,不是開機時):Docker Desktop 本來就要
+  使用者登入才會啟動,用開機觸發只會比資料庫早太多
 
 ## 8. Node 專屬 API 與 edge runtime
 

@@ -2,6 +2,10 @@ services:
   db:
     image: postgres:17-alpine
     container_name: expense-receipts-db
+    # 「要用才開電腦」的模式:Docker Desktop 一啟動就把資料庫帶起來,
+    # 使用者不必記得下 docker compose up。unless-stopped 是刻意的 ——
+    # 手動 docker compose stop 之後不會又被拉起來。
+    restart: unless-stopped
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app

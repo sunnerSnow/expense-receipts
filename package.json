@@ -11,9 +11,11 @@
   "scripts": {
     "dev": "dotenv -e .env -- pnpm --filter @expense-receipts/web dev",
     "worker": "dotenv -e .env -- pnpm --filter @expense-receipts/worker dev",
+    "start:web": "dotenv -e .env -- pnpm --filter @expense-receipts/web start",
+    "start:worker": "dotenv -e .env -- pnpm --filter @expense-receipts/worker start",
     "url": "node scripts/lan-url.mjs",
     "check:ai": "dotenv -e .env -- pnpm --filter @expense-receipts/worker check:ai",
-    "build": "pnpm -r build",
+    "build": "dotenv -e .env -- pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "db:generate": "dotenv -e .env -- pnpm --filter @expense-receipts/db generate",

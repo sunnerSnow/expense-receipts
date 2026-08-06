@@ -50,23 +50,41 @@ pnpm user:password -- --email member@company.com
 
 ### 用手機操作
 
-拍照上傳是手機情境,所以要從手機連到這台電腦(同一個 Wi-Fi):
+拍照上傳是手機情境,所以要從手機連到這台電腦。
 
-1. `pnpm url` 取得網址(例如 `http://192.168.0.135:3000`)
+**同一個 Wi-Fi**(開發時最快):
+
+1. `pnpm url` 取得網址(例如 `http://192.168.0.188:3000`)
 2. 手機瀏覽器開它,用已註冊的 email 登入
-3. iOS Safari 可「分享 → 加入主畫面」,之後像 App 一樣開啟
 
 **IP 會變**:DHCP 每次分配的位址可能不同,連不上就重跑 `pnpm url`。
-要固定的話在路由器上為這台電腦設 DHCP 保留位址。
-
 `next dev` 自己印的 Network 網址在有 WSL / Docker 虛擬網卡的機器上常是連不到的
 `172.x` 位址,所以用 `pnpm url` 而不是照抄它。
+
+**從外面連(4G、出差)**:用 Tailscale,不需要網域也不用開任何 port,
+而且網址固定、自動有 HTTPS。設定步驟見
+[docs/operations.md](docs/operations.md#5-tailscale手機從外面連)。
+
+### 當日常工具用(開機就自動上線)
+
+`pnpm dev` 是開發模式。要讓「開機 → 直接能用」,不必每次手動開兩個終端機:
+
+```powershell
+pnpm build                                  # production build(程式更新後都要重跑)
+pwsh -File scripts\install-autostart.ps1    # 註冊登入時自動啟動的工作排程
+```
+
+完整說明(電源設定、更新流程、備份、疑難排解)見
+[docs/operations.md](docs/operations.md)。
 
 ## 常用指令
 
 ```bash
-pnpm dev          # Next.js dev server
-pnpm worker       # pg-boss 背景工作程序(AI 辨識靠它)
+pnpm dev          # Next.js dev server(開發用)
+pnpm worker       # pg-boss 背景工作程序(開發用;AI 辨識靠它)
+pnpm build        # production build(日常使用前必跑)
+pnpm start:web    # production 網頁伺服器
+pnpm start:worker # production 背景工作程序
 pnpm url          # 印出手機可連的網址(DHCP 換 IP 後就跑這個)
 pnpm user:password # 建立帳號或重設密碼(見下方)
 pnpm check:ai     # 檢查 Gemini 金鑰與模型是否可用(不必上傳單據)
@@ -122,6 +140,7 @@ db 與 core 互不依賴,apps 之間不互相 import。
 | 文件 | 內容 |
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | AI Agent 工作規範與鐵律 |
+| [docs/operations.md](docs/operations.md) | 開機自動上線、Tailscale、備份、疑難排解 |
 | [docs/roadmap.md](docs/roadmap.md) | 各 Phase 範圍與刻意不做的事 |
 | [docs/domain-model.md](docs/domain-model.md) | 資料模型與不變量 |
 | [docs/conventions.md](docs/conventions.md) | 程式碼慣例與紅線 |
