@@ -27,6 +27,12 @@ export {
   type RecognitionResult,
 } from "./recognition";
 export {
+  selectLostRecognitions,
+  RECOGNITION_STALE_AFTER_MS,
+  type LostRecognitionInput,
+  type QueuedRecognition,
+} from "./recognition-recovery";
+export {
   buildExportRows,
   exportFileName,
   toCsv,

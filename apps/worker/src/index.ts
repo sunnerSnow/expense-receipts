@@ -2,11 +2,13 @@ import PgBoss from "pg-boss";
 import { createDb } from "@expense-receipts/db";
 import {
   QUEUES,
+  RECOGNIZE_RETRY_OPTIONS,
   type GenerateExportPayload,
   type RecognizeReceiptPayload,
 } from "@expense-receipts/queue";
 import { env } from "./env";
 import { generateExportJob } from "./jobs/generate-export";
+import { recoverLostRecognitions } from "./jobs/recover-recognitions";
 import { markRecognitionFailed, recognizeReceiptJob } from "./jobs/recognize-receipt";
 import { createRecognizer } from "./recognizer";
 
@@ -20,6 +22,32 @@ async function main() {
 
   await boss.createQueue(QUEUES.recognizeReceipt);
   await boss.createQueue(QUEUES.generateExport);
+
+  /*
+    先救援再開工:機器關著的期間,佇列裡的工作可能已經過期被清掉
+    (pg-boss 預設保留 14 天),單據就會永遠停在「辨識中」。
+    掃描要在 boss.work() 之前,確保掃的時候沒有工作正在跑。
+    這一步失敗不該擋住 worker 啟動 —— 記錄下來,照常開工。
+  */
+  try {
+    const recovery = await recoverLostRecognitions({
+      db,
+      send: async (receiptId) => {
+        await boss.send(QUEUES.recognizeReceipt, { receiptId } satisfies RecognizeReceiptPayload, {
+          ...RECOGNIZE_RETRY_OPTIONS,
+        });
+      },
+    });
+    if (recovery.requeued.length > 0) {
+      console.warn(
+        `[啟動修復] ${recovery.queued} 筆掛在辨識中,其中 ${recovery.requeued.length} 筆找不到對應工作,已重新派工:${recovery.requeued.join(", ")}`,
+      );
+    } else if (recovery.queued > 0) {
+      console.log(`[啟動修復] ${recovery.queued} 筆掛在辨識中,工作都還在佇列裡,不介入`);
+    }
+  } catch (err) {
+    console.error(`[啟動修復] 掃描失敗,略過:${(err as Error)?.message ?? "未知錯誤"}`);
+  }
 
   await boss.work<RecognizeReceiptPayload>(
     QUEUES.recognizeReceipt,

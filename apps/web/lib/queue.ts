@@ -50,8 +50,14 @@ export async function sendRecognizeJob(payload: RecognizeReceiptPayload): Promis
 /**
  * 派送月結匯出工作;回傳 job id。
  *
- * singletonKey 用期間字串:同一個月被連點兩次不會產生兩批匯出
- * (匯出會把單據轉成 exported 終態,重複執行的代價很高)。
+ * singletonKey 帶期間字串,但**別把防重複的責任押在它身上**:pg-boss 10 的
+ * singletonKey 只在佇列 policy 是 short/singleton/stately 時才有唯一索引撐腰,
+ * 我們用的是預設的 standard —— 連點兩次會真的產生兩份工作。
+ *
+ * 真正擋住重複匯出的是資料庫:撈取條件含 `export_batch_id IS NULL`,而狀態
+ * 轉換的 UPDATE 以 `status = 'confirmed'` 為條件並比對更新筆數,先跑完的交易
+ * 會讓後跑的那筆更新到 0 列而整批回滾(見 generate-export.ts)。
+ * 這裡留 singletonKey 是為了日後改 policy 時能直接生效。
  */
 export async function sendExportJob(payload: GenerateExportPayload): Promise<string> {
   const boss = await getBoss();
