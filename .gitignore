@@ -17,7 +17,11 @@ Thumbs.db
 next-env.d.ts
 *.tsbuildinfo
 
-# 單據影像(報帳憑證,只存本機/物件儲存,不進 git)
-uploads/
-exports/
+# 單據影像與月結產出物(報帳憑證,只存本機,不進 git)
+#
+# 開頭的 / 是必要的:沒有錨定的話 `exports/` 會比對「任何一層」的同名資料夾,
+# 結果連 apps/web/app/(app)/exports/(月結匯出頁的原始碼)都被忽略掉 ——
+# 整個功能沒進版控,clone 下來會少一頁而且編不過。踩過一次。
+/uploads/
+/exports/
 .next-verify/
