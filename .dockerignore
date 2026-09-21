@@ -1,0 +1,38 @@
+# 建置情境只需要原始碼與 manifest。把重的、機密的、以及會讓映像不可重現的排除掉。
+
+# 相依套件:容器內自己 pnpm install(宿主的 node_modules 可能是 Windows 的二進位)
+node_modules
+**/node_modules
+
+# 建置產物:容器內重新建,避免把宿主的 .next 帶進去造成混淆
+.next
+**/.next
+.next-verify
+**/.next-verify
+dist
+**/dist
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# 機密:絕對不要進映像層(映像層是可以被翻出來的)。
+# 執行時用 compose 的 env_file 注入。
+.env
+.env.*
+
+# 憑證資料:用 volume 掛進去,不進映像
+uploads
+exports
+
+# 版控與雜項
+.git
+.gitignore
+.github
+*.log
+.DS_Store
+Thumbs.db
+
+# 文件對執行沒有影響,排除可以讓建置快取更少失效
+docs
+README.md
+CLAUDE.md
+*.md

@@ -65,26 +65,26 @@ pnpm user:password -- --email member@company.com
 而且網址固定、自動有 HTTPS。設定步驟見
 [docs/operations.md](docs/operations.md#5-tailscale手機從外面連)。
 
-### 當日常工具用(開機就自動上線)
+### 當日常工具用(整套跑在 Docker)
 
-`pnpm dev` 是開發模式。要讓「開機 → 直接能用」,不必每次手動開兩個終端機:
+`pnpm dev` 是開發模式。日常使用跑容器 —— 三個服務(資料庫、網頁、背景工作)
+都設了 `restart: unless-stopped`,**Docker Desktop 一啟動就全部上線**:
 
 ```powershell
-pnpm build                                  # production build(程式更新後都要重跑)
-pwsh -File scripts\install-autostart.ps1    # 註冊登入時自動啟動的工作排程
+docker compose up -d
 ```
 
-完整說明(電源設定、更新流程、備份、疑難排解)見
-[docs/operations.md](docs/operations.md)。
+換機器只要三步驟(clone → 放回 `.env`/`uploads`/`exports` → `docker compose up -d`),
+不需要 Node、pnpm 或 build。完整說明見 [docs/operations.md](docs/operations.md)。
 
 ## 常用指令
 
 ```bash
 pnpm dev          # Next.js dev server(開發用)
 pnpm worker       # pg-boss 背景工作程序(開發用;AI 辨識靠它)
-pnpm build        # production build(日常使用前必跑)
-pnpm start:web    # production 網頁伺服器
-pnpm start:worker # production 背景工作程序
+pnpm build        # production build(只有不用 Docker 直接跑在宿主時才需要)
+pnpm start:web    # production 網頁伺服器(同上)
+pnpm start:worker # production 背景工作程序(同上)
 pnpm url          # 印出手機可連的網址(DHCP 換 IP 後就跑這個)
 pnpm user:password # 建立帳號或重設密碼(見下方)
 pnpm check:ai     # 檢查 Gemini 金鑰與模型是否可用(不必上傳單據)

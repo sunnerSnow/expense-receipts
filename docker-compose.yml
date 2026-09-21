@@ -1,9 +1,16 @@
+# 三個服務全部在這裡:資料庫、網頁、背景工作。
+#
+# 換機器只要:裝 Docker → clone → 放回 .env/uploads/exports → docker compose up -d
+# 不需要 Node、pnpm、build,也不需要 Windows 工作排程(見 docs/operations.md)。
+#
+# 資料庫內容不靠 volume 搬家 —— 用 pg_dump 匯出成 SQL 檔(見移機章節)。
+# 理由:volume 是綁機器的,而執行中的 Postgres 資料目錄不能直接複製。
+
 services:
   db:
     image: postgres:17-alpine
     container_name: expense-receipts-db
-    # 「要用才開電腦」的模式:Docker Desktop 一啟動就把資料庫帶起來,
-    # 使用者不必記得下 docker compose up。unless-stopped 是刻意的 ——
+    # Docker Desktop 一啟動就把資料庫帶起來。unless-stopped 是刻意的 ——
     # 手動 docker compose stop 之後不會又被拉起來。
     restart: unless-stopped
     environment:
@@ -11,7 +18,9 @@ services:
       POSTGRES_PASSWORD: app
       POSTGRES_DB: expense_receipts
     ports:
-      # host 5433,避免與 booking-crm 的 5432 衝突
+      # host 5433,避免與 booking-crm 的 5432 衝突。
+      # 這個 port 只是為了讓宿主的 pnpm db:studio / psql 連得到;
+      # web 與 worker 走 compose 內部網路的 db:5432,不經過它。
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -20,6 +29,48 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: expense-receipts-web
+    restart: unless-stopped
+    # .env 提供 SESSION_SECRET / GEMINI_API_KEY / COMPANY_TAX_ID
+    env_file: .env
+    environment:
+      # 覆寫 .env 裡給宿主用的值:容器內走內部網路與掛載點
+      DATABASE_URL: postgresql://app:app@db:5432/expense_receipts
+      UPLOAD_DIR: /data/uploads
+      EXPORT_DIR: /data/exports
+    volumes:
+      # 憑證影像與匯出檔留在宿主的專案目錄底下,容器砍掉重建也不會掉
+      - ./uploads:/data/uploads
+      - ./exports:/data/exports
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: expense-receipts-worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://app:app@db:5432/expense_receipts
+      UPLOAD_DIR: /data/uploads
+      EXPORT_DIR: /data/exports
+    volumes:
+      # 必須與 web 指向同一處,否則「上傳得到、辨識讀不到」
+      - ./uploads:/data/uploads
+      - ./exports:/data/exports
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:

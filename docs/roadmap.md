@@ -113,8 +113,14 @@
   實測把 `UPLOAD_DIR` / `EXPORT_DIR` 指到完全不同的目錄,資料庫沒動,
   6 張影像與匯出檔照樣讀得到;刻意少放一張則正確回 404
 
-**還沒做**:登入嘗試次數限制(對公網開放前必補)、自動備份、批次上傳。
-把 web/worker 也收進 docker compose 現在沒有阻擋條件了,但單機自用還不需要。
+- ✅ **整套容器化**(2026-09-21):web 與 worker 收進 `docker-compose.yml`,
+  三個服務都 `restart: unless-stopped`。**換機器變成三步驟** —— clone、
+  放回 `.env`/`uploads`/`exports`、`docker compose up -d`,不需要 Node、pnpm、
+  build,也不需要 Windows 工作排程。同一份 compose 日後可直接搬 VPS。
+  Windows 工作排程那套改為淘汰(會與容器搶 port 3000),腳本保留給不用 Docker 的情況
+
+**還沒做**:登入嘗試次數限制(對公網開放前必補)、自動備份、批次上傳、
+PWA 離線佇列(讓人在國外當下就能建單,不必等回辦公室)。
 
 ## 刻意不做(擱置區)
 

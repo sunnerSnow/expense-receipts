@@ -11,7 +11,14 @@ const nextConfig: NextConfig = {
    * 要在開發中並行驗證時,用 `NEXT_DIST_DIR=.next-verify` 開另一個目錄。
    */
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
-  // monorepo 根目錄(避免 Next 誤把家目錄的雜散 lockfile 當成 workspace root)
+  /**
+   * standalone:把 server 與「真正用到的」node_modules 一起輸出成可自帶執行的
+   * 目錄,容器裡不必再放整份 node_modules(映像從 GB 級降到百 MB 級)。
+   * 對本機 `next start` 沒有影響,它仍然照常運作。
+   */
+  output: "standalone",
+  // monorepo 根目錄(避免 Next 誤把家目錄的雜散 lockfile 當成 workspace root)。
+  // standalone 也用它決定輸出的目錄結構,所以 workspace 套件才會被一起帶進去。
   outputFileTracingRoot: path.join(__dirname, "..", ".."),
   transpilePackages: [
     "@expense-receipts/auth",

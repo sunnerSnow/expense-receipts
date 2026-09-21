@@ -178,6 +178,18 @@ chrome --headless=new --remote-debugging-port=9222 about:blank
 至少要驗:目標元素有 `__react*` 屬性(代表已 hydrate)、`Network.loadingFailed`
 沒有 script/stylesheet、以及互動後畫面真的變了。
 
+## 7f. 容器
+
+- 日常執行是 `docker compose up -d`(db / web / worker 三個服務)。改了程式碼要
+  `--build` 才會生效 —— 容器跑的是映像,不是工作目錄
+- **機密不進映像層**:`.dockerignore` 排除 `.env`,執行時由 compose 的 `env_file`
+  注入。映像層是可以被翻出來的
+- `next build` 的 collect page data 階段會執行 server 模組、驗證環境變數,所以
+  web 的 Dockerfile 要給**建置期假值**;真值執行時才注入
+- pnpm workspace 的套件相依會放進**該套件自己的** `node_modules/.bin`,不是
+  repo 根。容器 CMD 要指對路徑(`apps/worker/node_modules/.bin/tsx`),踩過一次
+- 容器與宿主的 `pnpm dev` **會搶 port 3000**,要開發先 `docker compose stop web worker`
+
 ## 7e. Windows 指令稿
 
 - **含非 ASCII 字元的 `.ps1` 必須存成 UTF-8 with BOM**。Windows PowerShell 5.1
