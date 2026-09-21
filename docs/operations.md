@@ -94,7 +94,37 @@ tailscale serve status
 **安全性上的意義**:登入頁不在公網上,外面的人連連到都連不到。這也是為什麼
 「登入嘗試次數限制」目前還不是上線的阻擋條件 —— 真要對公網開放時再補。
 
-## 換機器(三步驟)
+## 全新安裝(不帶舊資料)
+
+只要 **Docker Desktop 和 Git**,不需要 Node 或 pnpm。
+
+```powershell
+git clone https://github.com/sunnerSnow/expense-receipts.git
+cd expense-receipts
+
+# .env 要自己準備(裡面有 GEMINI_API_KEY 與 SESSION_SECRET)
+Copy-Item <舊機備份>\.env .          # 或 cp .env.example .env 後自己填
+
+docker compose up -d                 # 第一次會建置映像,幾分鐘
+
+# 建表、寫入預設分類、建自己的管理者帳號
+docker compose run --rm tools pnpm migrate
+docker compose run --rm tools pnpm seed
+docker compose run --rm -e NEW_PASSWORD='一句夠長的密碼' tools `
+  pnpm user:password -- --email you@company.com --name 你的名字 --role admin
+```
+
+`tools` 是一次性的維護容器(compose 裡掛了 profile,平常不會跟著啟動),
+裡面有 `drizzle-kit` 與 `tsx` —— 所以**宿主不必裝 Node**。
+
+> `pnpm seed` 會建一個 `admin@example.com` 的開發帳號並印出密碼。
+> 建好自己的帳號之後,到網頁的「使用者」把它降成成員,或直接
+> `docker compose exec -T db psql -U app -d expense_receipts -c "delete from users where email='admin@example.com'"`
+> (只有在它沒有上傳過任何單據時刪得掉)。
+
+驗收:開 http://localhost:3000 用新帳號登入,「分類」頁應該看得到 12 個預設分類。
+
+## 換機器(帶著舊資料)
 
 程式碼在 GitHub;要帶走的只有 `.env`、資料庫、`uploads/`、`exports/`。
 
@@ -131,6 +161,9 @@ docker compose exec -T db psql -U app -d expense_receipts -f /tmp/db.sql
 
 **不需要 Node、pnpm、`pnpm install`、`pnpm build`**,也不需要 Windows 工作排程。
 Mac / Linux 也是同樣三步驟。
+
+> dump 已經帶了完整 schema,所以**還原舊資料時不用跑 `tools pnpm migrate`**;
+> 那是全新安裝才需要的。
 
 驗收:
 

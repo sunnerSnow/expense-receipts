@@ -206,6 +206,12 @@ chrome --headless=new --remote-debugging-port=9222 about:blank
 - pnpm workspace 的套件相依會放進**該套件自己的** `node_modules/.bin`,不是
   repo 根。容器 CMD 要指對路徑(`apps/worker/node_modules/.bin/tsx`),踩過一次
 - 容器與宿主的 `pnpm dev` **會搶 port 3000**,要開發先 `docker compose stop web worker`
+- 資料庫維護(migrate / seed / 建帳號)走 `tools` 服務:
+  `docker compose run --rm tools pnpm migrate`。它掛了 profile 不會常駐,
+  存在的理由是**新機器只裝 Docker 就要能把系統建起來** ——
+  `drizzle-kit` 與 `tsx` 都是 devDependency,少了這個容器就得先裝 Node
+- **不要讓 web/worker 啟動時自動跑 migration**:conventions 第 3 節要求
+  產出的 SQL 經人工 review 再套用,自動套等於繞過那道關卡
 
 ## 7e. Windows 指令稿
 

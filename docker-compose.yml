@@ -72,5 +72,22 @@ services:
       db:
         condition: service_healthy
 
+  # 一次性的資料庫維護工具(套 migration、寫預設分類、建帳號)。
+  # profile 讓它平常不會跟著 `docker compose up` 起來:
+  #   docker compose run --rm tools pnpm migrate
+  #   docker compose run --rm tools pnpm seed
+  #   docker compose run --rm -e NEW_PASSWORD=... tools pnpm user:password -- --email x --role admin
+  tools:
+    build:
+      context: .
+      dockerfile: packages/db/Dockerfile
+    profiles: ["tools"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://app:app@db:5432/expense_receipts
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   pgdata:

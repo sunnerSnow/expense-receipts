@@ -78,8 +78,16 @@ pnpm user:password -- --email member@company.com
 docker compose up -d
 ```
 
-換機器只要三步驟(clone → 放回 `.env`/`uploads`/`exports` → `docker compose up -d`),
-不需要 Node、pnpm 或 build。完整說明見 [docs/operations.md](docs/operations.md)。
+換機器或全新安裝**只要 Docker 與 Git**,不需要 Node、pnpm 或 build。
+建表與建帳號用一次性的 `tools` 容器:
+
+```powershell
+docker compose run --rm tools pnpm migrate   # 建表
+docker compose run --rm tools pnpm seed      # 預設分類
+docker compose run --rm -e NEW_PASSWORD='...' tools pnpm user:password -- --email you@company.com --role admin
+```
+
+完整說明見 [docs/operations.md](docs/operations.md)。
 
 ## 常用指令
 
