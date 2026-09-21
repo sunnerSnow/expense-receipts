@@ -63,7 +63,11 @@ pnpm user:password -- --email member@company.com
 
 **從外面連(4G、出差)**:用 Tailscale,不需要網域也不用開任何 port,
 而且網址固定、自動有 HTTPS。設定步驟見
-[docs/operations.md](docs/operations.md#5-tailscale手機從外面連)。
+[docs/operations.md](docs/operations.md#4-tailscale手機從外面連)。
+
+**電腦沒開的時候**:用「離線拍收據」(`/receipts/new/offline`)—— 照片與備註
+先存在手機裡,等連得到伺服器、打開 App 就自動補送並進 AI 辨識(ADR-0008)。
+**出發前記得先在線上開一次那一頁**,service worker 才裝得起來。
 
 ### 當日常工具用(整套跑在 Docker)
 

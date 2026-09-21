@@ -1,7 +1,6 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -19,32 +18,11 @@ import { getDb } from "@/lib/db";
 import { env } from "@/lib/env";
 import { requireUser } from "@/lib/auth";
 import { sendRecognizeJob } from "@/lib/queue";
+import { createAiReceiptRecord, saveReceiptImage } from "@/lib/receipt-intake";
 
 export type ActionState = { error?: string };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * MIME → 副檔名。
- *
- * 副檔名不只是裝飾:worker 是靠它決定送給 Gemini 的 mimeType(見
- * jobs/recognize-receipt.ts 的 MIME_BY_EXT)。從相簿選檔會遇到 iPhone 的
- * HEIC,若一律當成 jpg,worker 就會拿 image/jpeg 的標頭送 HEIC 的位元組。
- */
-function extFromType(type: string): string {
-  switch (type) {
-    case "image/png":
-      return "png";
-    case "image/webp":
-      return "webp";
-    case "image/heic":
-      return "heic";
-    case "image/heif":
-      return "heif";
-    default:
-      return "jpg";
-  }
-}
 
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -58,19 +36,6 @@ function nullable(formData: FormData, key: string): string | null {
 
 function isDocType(v: string): v is ReceiptDocType {
   return (RECEIPT_DOC_TYPES as readonly string[]).includes(v);
-}
-
-/**
- * 影像落地;回傳**存進資料庫的鍵值**(相對於 UPLOAD_DIR,不是絕對路徑)。
- *
- * 存鍵值而不是絕對路徑:專案換位置(換電腦、換使用者名稱、搬進容器)之後,
- * 絕對路徑會全部失效 —— 而影像是報帳憑證,讀不到等於憑證遺失。見 ADR-0007。
- */
-async function saveImage(image: File, id: string): Promise<string> {
-  const key = `${id}.${extFromType(image.type)}`;
-  await mkdir(env.UPLOAD_DIR, { recursive: true });
-  await writeFile(path.join(env.UPLOAD_DIR, key), Buffer.from(await image.arrayBuffer()));
-  return key;
 }
 
 /**
@@ -111,7 +76,7 @@ export async function createReceipt(_prev: ActionState, formData: FormData): Pro
   });
 
   const id = randomUUID();
-  const filePath = await saveImage(image, id);
+  const filePath = await saveReceiptImage(image, id, image.type);
 
   const rawDataRaw = str(formData, "rawData");
   let rawData: unknown = null;
@@ -148,50 +113,21 @@ export async function createReceipt(_prev: ActionState, formData: FormData): Pro
   redirect(`/receipts/${id}`);
 }
 
-/**
- * AI 辨識路徑:先落地影像 + 建一筆空殼單據,再派工給 worker。
- *
- * 為什麼先建空殼:job payload 只帶 receiptId,worker 靠它找影像與寫回結果;
- * 而且使用者上傳完就能在列表看到「辨識中」,不用停在上傳頁等。
- * 金額先放 0 —— 它是 NOT NULL,而 recognition_status='queued' 才是「還沒有資料」
- * 的真正判準,確認入帳會被擋住(見 confirmReceipt)。
- */
+/** AI 辨識路徑。實作在 lib/receipt-intake,與離線佇列的補送端點共用同一份 */
 async function createAiReceipt(
   uploaderId: string,
   image: File,
   formData: FormData,
 ): Promise<ActionState> {
   const id = randomUUID();
-  const filePath = await saveImage(image, id);
-
-  await getDb().insert(receipts).values({
+  await createAiReceiptRecord({
     id,
     uploaderId,
-    context: "company",
-    docType: "other", // 佔位,辨識後由 worker 更正
-    source: "ai",
-    status: "pending_review",
-    currency: "TWD",
-    amount: "0",
+    image,
+    mimeType: image.type,
     categoryId: nullable(formData, "categoryId"),
     note: nullable(formData, "note"),
-    imagePath: filePath,
-    recognitionStatus: "queued",
   });
-
-  try {
-    await sendRecognizeJob({ receiptId: id });
-  } catch (err) {
-    // 派工失敗要寫回 DB,否則單據會永遠停在「辨識中」查不出原因
-    await getDb()
-      .update(receipts)
-      .set({
-        recognitionStatus: "failed",
-        recognitionError: `辨識工作派送失敗:${(err as Error)?.message ?? "未知錯誤"}`,
-      })
-      .where(eq(receipts.id, id));
-  }
-
   redirect(`/receipts/${id}`);
 }
 

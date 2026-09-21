@@ -49,8 +49,10 @@ ENV NODE_ENV=production \
 # standalone 已經把用得到的 node_modules 一起輸出,不需要再 pnpm install。
 # 目錄結構會保留 monorepo 的形狀(outputFileTracingRoot 是 repo 根)。
 COPY --from=build /repo/apps/web/.next/standalone ./
-# static 與 public 不在 standalone 追蹤範圍內,要自己補
+# static 與 public 都**不在** standalone 的追蹤範圍內,要自己補 ——
+# 少了 public,/manifest.webmanifest 與 /sw.js 會 404(PWA 與離線佇列直接失效)
 COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build /repo/apps/web/public ./apps/web/public
 
 # 憑證影像與匯出檔掛在這裡(compose 的 volumes)
 RUN mkdir -p /data/uploads /data/exports && chown -R node:node /data

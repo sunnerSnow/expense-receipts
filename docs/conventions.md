@@ -178,6 +178,23 @@ chrome --headless=new --remote-debugging-port=9222 about:blank
 至少要驗:目標元素有 `__react*` 屬性(代表已 hydrate)、`Network.loadingFailed`
 沒有 script/stylesheet、以及互動後畫面真的變了。
 
+## 7g. 離線與連線判斷
+
+- **不要用 `navigator.onLine` 判斷「送不送得出去」**。它只說裝置有沒有網路介面;
+  這個系統最常見的離線情境是「手機有 4G、但辦公室電腦沒開」,那時它是 `true`。
+  一律用 `isServerReachable()`(`lib/offline-queue.ts`,打 `/api/ping`)
+- 離線佇列存 IndexedDB(照片是 Blob,localStorage 放不下),見 ADR-0008
+- **補送一定要冪等**:客戶端存檔時就產生 UUID 當 id,伺服器收到重複的回
+  `duplicate`。行動網路上「伺服器寫入了但回應沒回到手機」一定會發生,
+  少了這層就會出現重複的報帳憑證
+- 建立單據只走 `lib/receipt-intake.ts`,上傳頁與補送端點共用 —— 兩份實作
+  遲早有一邊違反鐵律 3
+- service worker(`public/sw.js`)**只讓 `/receipts/new/offline` 一頁離線可用**。
+  其他頁面是登入後的伺服器渲染內容,快取起來有隱私疑慮,也會讓人看到過期資料
+- **service worker 的 `install` 絕對不能 reject**:一旦失敗整個 SW 會被丟棄、
+  註冊消失,連 runtime 快取都沒了。precache 是加分項,要 `.catch()` 掉。
+  踩過一次(測試環境的 CacheStorage 壞掉,查了一輪才發現)
+
 ## 7f. 容器
 
 - 日常執行是 `docker compose up -d`(db / web / worker 三個服務)。改了程式碼要

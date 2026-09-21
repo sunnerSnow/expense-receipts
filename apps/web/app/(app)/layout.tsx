@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { OfflineSync } from "./OfflineSync";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -34,7 +35,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {user.name}
         </Link>
       </nav>
-      <main>{children}</main>
+      <main>
+        <OfflineSync />
+        {children}
+      </main>
     </>
   );
 }
