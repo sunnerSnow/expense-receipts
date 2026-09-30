@@ -62,3 +62,17 @@ pnpm db:studio    # Drizzle Studio 瀏覽資料
 - `pnpm typecheck` 與 `pnpm test` 全綠
 - `packages/core` 新增的公開函式有單元測試
 - 做了新的架構判斷 → 已寫入 ADR;新慣例 → 已寫入 docs/conventions.md
+
+## Agent skills
+
+### Issue tracker
+
+Issue 放在 GitHub Issues(`sunnerSnow/expense-receipts`),用 `gh` CLI 操作。見 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+使用預設的五個標籤:needs-triage / needs-info / ready-for-agent / ready-for-human / wontfix。見 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+Single-context:詞彙表是 `docs/domain-model.md`,決策紀錄在 `docs/adr/`。見 `docs/agents/domain.md`。
