@@ -31,7 +31,8 @@ packages/auth   密碼雜湊(scrypt;只有 node 端會用,不可被 core 依賴)
    欄位,與 `status` 狀態機分離 —— worker 回填欄位時不得碰 `status`
 4. `receipts_invoice_number_unique` 部分唯一索引(發票號碼去重)不可移除
 5. 已匯出(exported)的單據不可修改、不可刪除;`export_batches` 只允許 INSERT
-6. 單據影像是報帳憑證:只增不刪,刪除單據紀錄也要保留影像檔。影像/匯出檔的位置
+6. 單據影像是報帳憑證:只增不刪,刪除單據紀錄也要保留影像檔。唯一例外是雲端
+   中繼站的暫存件:本機建單成功後才可刪(見 ADR-0009)。影像/匯出檔的位置
    一律存**相對鍵值**,讀取一律經 `resolveStoredFile()` —— 不得直接
    `readFile(row.imagePath)`(舊資料是絕對路徑,見 ADR-0007)
 7. 已套用的 migration 不可修改

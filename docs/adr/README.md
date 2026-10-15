@@ -25,4 +25,5 @@ ADR 把「為什麼這樣做」變成可追溯的制度。程式碼會告訴你�
 | [0005](0005-export-no-currency-conversion.md) | 月結匯出用 CSV,外幣只列原幣不換算台幣 | Accepted |
 | [0006](0006-password-auth.md) | 登入改為 email + 密碼(scrypt),取代只驗 email | Accepted |
 | [0007](0007-storage-relative-paths.md) | 檔案位置存相對鍵值,絕對路徑在讀取時正規化 | Accepted |
-| [0008](0008-offline-capture-queue.md) | 離線拍收據:IndexedDB 佇列 + 開啟即補送,不用 Background Sync | Accepted |
+| [0008](0008-offline-capture-queue.md) | 離線拍收據:IndexedDB 佇列 + 開啟即補送,不用 Background Sync | Accepted(補送目的地與建單模組位置由 0009 延伸) |
+| [0009](0009-cloud-relay-capture.md) | 離線拍收據改送雲端中繼站:Cloudflare Worker + KV 暫存,本機開機時拉回 | Accepted |

@@ -130,6 +130,20 @@
 
 **還沒做**:登入嘗試次數限制(對公網開放前必補)、自動備份、批次上傳。
 
+## 雲端中繼站 — 進行中(2026-10-15 起,ADR-0009)
+
+目標:手機拍完照片就離開手機;回辦公室不必再打開 App 補送,電腦開機就自動進來。
+主系統仍在本機(「要用才開電腦」不變),只有收件放上 Cloudflare。
+
+- ⬜ 建單流程從 `apps/web/lib/receipt-intake.ts` 抽成 `packages/intake`(派工函式注入)
+- ⬜ 上傳憑證的簽章/驗章(WebCrypto,`packages/auth` 子路徑)+ 測試
+- ⬜ `apps/relay`:Cloudflare Worker + KV,收件/列出/取件/刪除四個端點
+- ⬜ web:`/api/relay/credential` 發憑證;離線頁「本機 → 中繼站 → 留佇列」的送出順序
+- ⬜ worker:啟動時與每 5 分鐘拉一次,建單成功才刪中繼站的件
+- ⬜ operations.md:部署步驟、密鑰兩邊一致、出發前先領憑證、手機遺失換密鑰
+
+**需要使用者自己做的**:註冊 Cloudflare 帳號、`wrangler login` 授權部署。
+
 ## 刻意不做(擱置區)
 
 | 項目 | 原因 |

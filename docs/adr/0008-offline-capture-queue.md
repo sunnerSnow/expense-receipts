@@ -1,6 +1,6 @@
 # 0008. 離線拍收據:IndexedDB 佇列 + 開啟即補送,不用 Background Sync
 
-- 狀態:Accepted
+- 狀態:Accepted(補送目的地多了雲端中繼站、建單模組搬到 `packages/intake`,見 [ADR-0009](0009-cloud-relay-capture.md))
 - 日期:2026-09-21
 
 ## Context(當時的情境)

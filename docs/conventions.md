@@ -195,6 +195,20 @@ chrome --headless=new --remote-debugging-port=9222 about:blank
   註冊消失,連 runtime 快取都沒了。precache 是加分項,要 `.catch()` 掉。
   踩過一次(測試環境的 CacheStorage 壞掉,查了一輪才發現)
 
+## 7h. 雲端中繼站(ADR-0009)
+
+- **中繼站只收件、交件**:不辨識、不碰資料庫、不放 Gemini 金鑰。單據一律在本機
+  經共用建單流程建立
+- **本機拉,中繼站不推**:本機只需要出站連線,不為中繼站開任何公網入口
+- **中繼站的件要等本機落地才刪**:建單成功(或該 UUID 已存在)之後才 `DELETE`。
+  本機存好之前,中繼站那份是這張憑證唯一的副本(鐵律 6)
+- **手機佇列的刪除條件只有一個**:目的地(本機或中繼站)明確回應收到。
+  存檔一律先進 IndexedDB,不要寫「直接上傳、失敗才進佇列」的分支
+- **兩把鑰匙不混用**:手機用 `RELAY_SECRET` 簽的上傳憑證(只能上傳),
+  worker 用 `RELAY_PULL_TOKEN`(只能列出/取件/刪除)。**不得共用 `SESSION_SECRET`**
+- 中繼站以**憑證裡的 userId** 當 uploader,不信任請求本文帶的身分
+- `RELAY_URL` 沒設 = 功能關閉,行為必須與 ADR-0008 完全相同
+
 ## 7f. 容器
 
 - 日常執行是 `docker compose up -d`(db / web / worker 三個服務)。改了程式碼要
