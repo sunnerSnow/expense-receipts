@@ -26,6 +26,9 @@ importers:
       '@expense-receipts/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@expense-receipts/intake':
+        specifier: workspace:*
+        version: link:../../packages/intake
       '@expense-receipts/queue':
         specifier: workspace:*
         version: link:../../packages/queue
@@ -171,6 +174,28 @@ importers:
       typescript:
         specifier: ^5.8.0
         version: 5.9.3
+
+  packages/intake:
+    dependencies:
+      '@expense-receipts/db':
+        specifier: workspace:*
+        version: link:../db
+      '@expense-receipts/queue':
+        specifier: workspace:*
+        version: link:../queue
+      drizzle-orm:
+        specifier: ^0.44.2
+        version: 0.44.7(@types/pg@8.20.0)(pg@8.22.0)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.1)(tsx@4.23.1)
 
   packages/queue:
     devDependencies:

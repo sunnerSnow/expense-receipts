@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
     "@expense-receipts/config",
     "@expense-receipts/core",
     "@expense-receipts/db",
+    "@expense-receipts/intake",
     "@expense-receipts/queue",
   ],
   experimental: {

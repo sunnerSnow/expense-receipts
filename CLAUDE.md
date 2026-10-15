@@ -14,9 +14,12 @@ packages/db     Drizzle schema + migrations + seed
 packages/config zod 環境變數驗證(parseEnv)+ 路徑解析(resolveFromRepoRoot)
 packages/queue  佇列名稱與 payload 型別(web send / worker work 共用契約)
 packages/auth   密碼雜湊(scrypt;只有 node 端會用,不可被 core 依賴)
+packages/intake 建立 AI 單據的唯一入口(影像落地 + 建空殼 + 派工;node 專屬,
+                DB/目錄/派工由呼叫端注入,web 與 worker 共用,見 ADR-0009)
 ```
 
-依賴方向:apps → core / db / config / queue / auth,以及 config → core
+依賴方向:apps → core / db / config / queue / auth / intake,intake → db / queue,
+以及 config → core
 (`resolveStoredFile` 要用 core 的 `toStorageKey`,見 ADR-0007)。**core 不依賴任何
 東西**,依賴圖保持 DAG;db 與 core 互不依賴(共用 enum 手動同步,見 conventions
 第 4 節)。apps 之間不得互相 import。

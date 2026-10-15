@@ -187,8 +187,9 @@ chrome --headless=new --remote-debugging-port=9222 about:blank
 - **補送一定要冪等**:客戶端存檔時就產生 UUID 當 id,伺服器收到重複的回
   `duplicate`。行動網路上「伺服器寫入了但回應沒回到手機」一定會發生,
   少了這層就會出現重複的報帳憑證
-- 建立單據只走 `lib/receipt-intake.ts`,上傳頁與補送端點共用 —— 兩份實作
-  遲早有一邊違反鐵律 3
+- 建立 AI 單據只走 `packages/intake`(web 經 `lib/receipt-intake.ts` 接線),
+  上傳頁、補送端點、worker 的中繼拉回三條路共用 —— 多份實作遲早有一邊違反鐵律 3。
+  DB 連線、影像目錄、派工函式由呼叫端注入
 - service worker(`public/sw.js`)**只讓 `/receipts/new/offline` 一頁離線可用**。
   其他頁面是登入後的伺服器渲染內容,快取起來有隱私疑慮,也會讓人看到過期資料
 - **service worker 的 `install` 絕對不能 reject**:一旦失敗整個 SW 會被丟棄、

@@ -16,6 +16,7 @@ COPY packages/auth/package.json packages/auth/
 COPY packages/config/package.json packages/config/
 COPY packages/core/package.json packages/core/
 COPY packages/db/package.json packages/db/
+COPY packages/intake/package.json packages/intake/
 COPY packages/queue/package.json packages/queue/
 # worker 要 tsx(在 devDependencies),所以不能用 --prod
 RUN pnpm install --frozen-lockfile --filter @expense-receipts/worker...

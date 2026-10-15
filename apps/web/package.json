@@ -13,6 +13,7 @@
     "@expense-receipts/config": "workspace:*",
     "@expense-receipts/core": "workspace:*",
     "@expense-receipts/db": "workspace:*",
+    "@expense-receipts/intake": "workspace:*",
     "@expense-receipts/queue": "workspace:*",
     "drizzle-orm": "^0.44.2",
     "jsqr": "^1.4.0",

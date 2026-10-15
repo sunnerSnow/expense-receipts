@@ -113,7 +113,10 @@ export async function createReceipt(_prev: ActionState, formData: FormData): Pro
   redirect(`/receipts/${id}`);
 }
 
-/** AI 辨識路徑。實作在 lib/receipt-intake,與離線佇列的補送端點共用同一份 */
+/**
+ * AI 辨識路徑。實作在 `@expense-receipts/intake`(經 lib/receipt-intake 接線),
+ * 與離線佇列的補送端點、worker 的中繼拉回共用同一份
+ */
 async function createAiReceipt(
   uploaderId: string,
   image: File,
