@@ -208,6 +208,9 @@ chrome --headless=new --remote-debugging-port=9222 about:blank
 - **兩把鑰匙不混用**:手機用 `RELAY_SECRET` 簽的上傳憑證(只能上傳),
   worker 用 `RELAY_PULL_TOKEN`(只能列出/取件/刪除)。**不得共用 `SESSION_SECRET`**
 - 中繼站以**憑證裡的 userId** 當 uploader,不信任請求本文帶的身分
+- 憑證的簽章/驗章只有一份:`@expense-receipts/auth/relay-credential`,只用 WebCrypto
+  (web 的 Node 與 Cloudflare Worker 都要能跑)。**要從這個子路徑 import**,
+  從 `@expense-receipts/auth` 根目錄 import 會連帶拉進 scrypt 用的 `node:crypto`
 - `RELAY_URL` 沒設 = 功能關閉,行為必須與 ADR-0008 完全相同
 
 ## 7f. 容器

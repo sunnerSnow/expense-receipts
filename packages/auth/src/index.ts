@@ -5,6 +5,9 @@
  * 一旦 import `node:crypto` 就會在客戶端編譯失敗。這個坑已經在 `packages/config`
  * 的 `node:fs` 上踩過一次(見 docs/conventions.md 第 8 節)。
  * 這裡只有 web 的 server 端與 db 的 CLI 會用到。
+ *
+ * 例外是 `./relay-credential`(雲端中繼站的上傳憑證):它只用 WebCrypto,
+ * Cloudflare Worker 也要 import,所以放在獨立子路徑,不經過這個檔案。
  */
 
 import { randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from "node:crypto";
