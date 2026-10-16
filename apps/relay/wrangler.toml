@@ -10,8 +10,8 @@ name = "expense-receipts-relay"
 main = "src/index.ts"
 compatibility_date = "2026-09-25"
 
-# 照片暫存區。id 在第一次部署前用 `wrangler kv namespace create UPLOADS` 建立後填入;
+# 照片暫存區(2026-10-16 以 `wrangler kv namespace create UPLOADS` 建立)。
 # KV namespace 的 id 不是機密,可以進版控
 [[kv_namespaces]]
 binding = "UPLOADS"
-id = "00000000000000000000000000000000"
+id = "aec0e910724b4cfdb76a404082139461"

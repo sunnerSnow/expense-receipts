@@ -1,4 +1,9 @@
-import { checkRelayUpload, isUploadId, type RelayUploadMeta } from "@expense-receipts/core";
+import {
+  checkRelayUpload,
+  isUploadId,
+  RELAY_META_HEADER,
+  type RelayUploadMeta,
+} from "@expense-receipts/core";
 import { verifyRelayCredential } from "@expense-receipts/auth/relay-credential";
 
 /**
@@ -38,9 +43,6 @@ export interface RelayConfig {
 
 /** 密鑰太短等於沒設 —— 寧可整個關門,也不要用弱密鑰收件 */
 export const MIN_SECRET_LENGTH = 32;
-
-/** 取件時把 metadata 放在這個標頭(URI 編碼的 JSON,因為備註有中文) */
-export const META_HEADER = "x-relay-meta";
 
 function json(body: unknown, status: number, extra: HeadersInit = {}): Response {
   const headers = new Headers(extra);
@@ -143,7 +145,7 @@ async function pullOne(id: string, store: UploadStore) {
     headers: {
       "content-type": found.meta?.mimeType ?? "application/octet-stream",
       "cache-control": "no-store",
-      [META_HEADER]: encodeURIComponent(JSON.stringify(found.meta)),
+      [RELAY_META_HEADER]: encodeURIComponent(JSON.stringify(found.meta)),
     },
   });
 }

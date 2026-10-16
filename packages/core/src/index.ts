@@ -55,6 +55,7 @@ export {
   isUploadId,
   parseRelayUploadMeta,
   RELAY_CREDENTIAL_REFRESH_AFTER_MS,
+  RELAY_META_HEADER,
   RELAY_NOTE_MAX_LENGTH,
   shouldRefreshRelayCredential,
   type RelayUploadCheck,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { RelayUploadMeta } from "@expense-receipts/core";
+import { RELAY_META_HEADER, type RelayUploadMeta } from "@expense-receipts/core";
 import { signRelayCredential } from "@expense-receipts/auth/relay-credential";
-import { handle, META_HEADER, type RelayConfig, type UploadStore } from "./handler";
+import { handle, type RelayConfig, type UploadStore } from "./handler";
 
 const RELAY_SECRET = "relay-secret-for-tests-0123456789abcdef";
 const PULL_TOKEN = "pull-token-for-tests-0123456789abcdefgh";
@@ -178,7 +178,7 @@ describe("交件(拉取權杖)", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/jpeg");
     expect(await res.text()).toBe("jpeg-bytes");
-    const meta = JSON.parse(decodeURIComponent(res.headers.get(META_HEADER) ?? ""));
+    const meta = JSON.parse(decodeURIComponent(res.headers.get(RELAY_META_HEADER) ?? ""));
     expect(meta.note).toBe("客戶 A 晚餐");
   });
 

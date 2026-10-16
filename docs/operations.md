@@ -6,10 +6,12 @@
 ## 使用節奏
 
 ```
-出差中     用「離線拍收據」拍照 + 寫備註 → 存在手機裡
-回辦公室   開電腦 → 打開 App → 自動補送、AI 辨識 → 核對
+出差中     用「離線拍收據」拍照 + 寫備註 → 有網路就送到雲端中繼站,沒網路先存手機
+回辦公室   開電腦 → worker 自動從中繼站拉回、AI 辨識 → 核對
 月底       開電腦 → 匯出 → 交給會計 → 關機
 ```
+
+沒設定雲端中繼站時,照片會存在手機裡,回辦公室要打開 App 才會補送(見下方離線拍收據)。
 
 電腦關著時**照樣能建單**(見下方離線拍收據),只是要等回來才會真的送出去。
 真的要 24 小時隨時可查,就把同一份 `docker-compose.yml` 搬到一台一直開著的
@@ -33,6 +35,85 @@
   還沒送出的照片,待送筆數畫面上看得到。
 - 連線狀態顯示的是「**連不連得到伺服器**」,不是手機有沒有訊號 ——
   手機有 4G 但辦公室電腦沒開時,它會正確顯示「連不到伺服器」。
+
+## 雲端中繼站(ADR-0009)
+
+辦公室電腦沒開時,手機把照片送到 Cloudflare 上的中繼站(`apps/relay`)暫存;
+電腦開機後 worker 自己去拉回來建單,之後開著的期間每 5 分鐘再拉一次。
+中繼站**只收件、交件**,不辨識、不碰資料庫,照片拉回本機後就從中繼站刪掉。
+
+```
+手機 ──(連得到電腦)──────────────────→ 本機 web → AI 辨識
+     ──(電腦沒開)──→ 中繼站暫存 ──(電腦開機)──→ 本機 worker 拉回 → AI 辨識
+     ──(完全沒網路)──→ 先存手機,有網路時打開 App 再送
+```
+
+**出發前**:在連得到辦公室電腦的地方打開 App 任何一頁一次。手機會自動領中繼站的
+上傳憑證(效期 90 天,每週自動換新),離線頁也會被快取起來。
+
+### 兩把鑰匙
+
+| 變數 | 放哪裡 | 用途 |
+|---|---|---|
+| `RELAY_SECRET` | `.env`(web)+ Cloudflare secret | 簽手機的上傳憑證。只能上傳 |
+| `RELAY_PULL_TOKEN` | `.env`(worker)+ Cloudflare secret | worker 列出/取件/刪除。不能上傳 |
+| `ALLOWED_ORIGINS` | Cloudflare secret | 允許上傳的網頁來源 = 手機開 App 的網址(逗號分隔) |
+| `RELAY_URL` | `.env` | 中繼站網址。**留空 = 整個功能關閉** |
+
+兩邊的值必須一致,而且 `RELAY_SECRET` 不能跟 `SESSION_SECRET` 相同(web 啟動時會擋)。
+
+### 第一次部署
+
+需要 Node 與 pnpm(`pnpm install` 過),以及一個 Cloudflare 帳號(免費方案即可)。
+
+```powershell
+cd apps\relay
+npx wrangler login                          # 瀏覽器授權,只要一次
+npx wrangler kv namespace create UPLOADS    # 把印出的 id 填進 wrangler.toml
+npx wrangler deploy                         # 印出 https://...workers.dev 網址
+```
+
+產生兩把密鑰(各跑一次,值要記下來寫進 `.env`):
+
+```powershell
+node -e "console.log(crypto.randomBytes(32).toString('base64url'))"
+```
+
+設定到 Cloudflare(每個指令會要你貼上值):
+
+```powershell
+npx wrangler secret put RELAY_SECRET
+npx wrangler secret put RELAY_PULL_TOKEN
+npx wrangler secret put ALLOWED_ORIGINS     # 例:https://你的電腦名.你的tailnet.ts.net
+```
+
+`.env` 補上 `RELAY_URL`、`RELAY_SECRET`、`RELAY_PULL_TOKEN`,然後重建:
+
+```powershell
+docker compose up -d --build web worker
+docker compose logs worker --tail 5          # 應該看到「雲端中繼站:每 5 分鐘拉取」
+```
+
+改了 `apps/relay` 的程式要重新 `pnpm relay:deploy`(容器重建不會更新中繼站)。
+
+### 手機遺失時:換掉上傳密鑰
+
+手機上的憑證只能上傳、看不到任何照片,但還是要作廢:
+
+```powershell
+node -e "console.log(crypto.randomBytes(32).toString('base64url'))"   # 新的值
+cd apps\relay; npx wrangler secret put RELAY_SECRET                    # 貼上新值
+# .env 的 RELAY_SECRET 換成同一個新值,然後
+docker compose up -d web
+```
+
+其他手機下次連得到辦公室電腦時會自動領新憑證,不用做任何事。
+
+### 免費額度
+
+Workers KV 免費方案每天 1,000 次寫入/刪除/列出、總量 1 GB、單張上限 25 MiB。
+自用量遠低於此;worker 每 5 分鐘列出一次 = 每天 288 次。萬一某天超量,
+手機那天的上傳會失敗、照片留在手機,隔天自動再送,不會遺失。
 
 ## 三個容器
 
@@ -227,6 +308,10 @@ pnpm worker        # 另一個終端機
 | 手機連不到 | 電腦是不是睡著了 / `tailscale status` |
 | 離線頁打不開 | 出發前有沒有在**線上**開過一次(service worker 要先安裝) |
 | 離線存的單據沒補送 | 打開 App 任一頁會自動補送;或到離線頁按「立即送出」看錯誤訊息 |
+| 送到中繼站的照片沒進系統 | `docker compose logs worker \| Select-String 中繼站`。「留在中繼站沒動」會寫原因(例如經手人對不到帳號),照片不會被刪 |
+| 離線頁說「上傳憑證失效」 | 換過 `RELAY_SECRET` 或超過 90 天沒連回辦公室。連得到電腦時打開 App 一次就會更新 |
+| 送中繼站時顯示「來源不允許」 | Cloudflare 的 `ALLOWED_ORIGINS` 跟手機開 App 的網址不一致(要含 `https://`,結尾不要 `/`) |
+| 離線頁一直說「還沒領到中繼站的憑證」 | `.env` 的 `RELAY_URL` 有沒有設、web 有沒有重建 |
 | 資料庫連不上 | Docker Desktop 有沒有啟動(`docker compose ps`) |
 | 改了程式沒生效 | 忘了 `--build` |
 

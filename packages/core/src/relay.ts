@@ -34,6 +34,9 @@ export function isUploadId(id: string): boolean {
   return UUID_RE.test(id);
 }
 
+/** 取件時 metadata 放在這個回應標頭(URI 編碼的 JSON —— 備註有中文,標頭只能放 ASCII) */
+export const RELAY_META_HEADER = "x-relay-meta";
+
 /** 中繼站存在每一件旁邊的資訊(KV metadata) */
 export interface RelayUploadMeta {
   /** 來自上傳憑證,不是請求本文 */

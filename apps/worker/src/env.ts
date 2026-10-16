@@ -36,6 +36,24 @@ const raw = parseEnv(
     UPLOAD_DIR: z.string().min(1),
     // 月結匯出產出目錄(CSV + 影像 zip);web 也要讀來提供下載
     EXPORT_DIR: z.string().min(1),
+    /**
+     * 雲端中繼站(ADR-0009),**選填**。留空 = 不拉取。
+     * 有設的話,worker 啟動時與每 5 分鐘去中繼站把照片拉回來建單。
+     */
+    RELAY_URL: z
+      .string()
+      .refine((v) => v === "" || /^https?:\/\/\S+$/.test(v), "RELAY_URL 須為 http(s) 網址,或留空(不用中繼站)")
+      .optional(),
+    // 拉取權杖:只能列出/取件/刪除。與中繼站的同名 secret 一致,不進 log(鐵律 8)
+    RELAY_PULL_TOKEN: z.string().optional(),
+  }).superRefine((v, ctx) => {
+    if (v.RELAY_URL && (v.RELAY_PULL_TOKEN ?? "").length < 32) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["RELAY_PULL_TOKEN"],
+        message: "有設 RELAY_URL 時,RELAY_PULL_TOKEN 至少要 32 字元(與中繼站的設定一致)",
+      });
+    }
   }),
 );
 
@@ -46,4 +64,7 @@ export const env = {
   // 與 web 用同一套解析規則,確保兩邊指向同一個目錄
   UPLOAD_DIR: resolveFromRepoRoot(raw.UPLOAD_DIR),
   EXPORT_DIR: resolveFromRepoRoot(raw.EXPORT_DIR),
+  // 留空 = 不拉取
+  RELAY_URL: raw.RELAY_URL ? raw.RELAY_URL : null,
+  RELAY_PULL_TOKEN: raw.RELAY_PULL_TOKEN ?? "",
 };

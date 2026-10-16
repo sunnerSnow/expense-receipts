@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "check:ai": "tsx src/check-recognizer.ts"
   },
@@ -13,6 +14,7 @@
     "@expense-receipts/config": "workspace:*",
     "@expense-receipts/core": "workspace:*",
     "@expense-receipts/db": "workspace:*",
+    "@expense-receipts/intake": "workspace:*",
     "@expense-receipts/queue": "workspace:*",
     "@google/genai": "^2.15.0",
     "archiver": "^8.0.0",
@@ -23,6 +25,7 @@
     "@types/archiver": "^8.0.0",
     "@types/node": "^22.15.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
   }
 }

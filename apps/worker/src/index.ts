@@ -1,6 +1,7 @@
 import PgBoss from "pg-boss";
 import { sql } from "drizzle-orm";
 import { createDb, type Db } from "@expense-receipts/db";
+import { createAiReceiptRecord, receiptExists, type IntakeDeps } from "@expense-receipts/intake";
 import {
   QUEUES,
   RECOGNIZE_RETRY_OPTIONS,
@@ -9,6 +10,7 @@ import {
 } from "@expense-receipts/queue";
 import { env } from "./env";
 import { generateExportJob } from "./jobs/generate-export";
+import { httpRelayClient, pullFromRelay } from "./jobs/pull-relay";
 import { recoverLostRecognitions } from "./jobs/recover-recognitions";
 import { markRecognitionFailed, recognizeReceiptJob } from "./jobs/recognize-receipt";
 import { createRecognizer } from "./recognizer";
@@ -43,6 +45,71 @@ async function waitForDatabase(db: Db, timeoutMs = 120_000): Promise<number> {
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
   }
+}
+
+/**
+ * 每 5 分鐘拉一次 = 每天 288 次 list,在 KV 免費方案每天 1,000 次 list 之內。
+ * 實際上「要用才開電腦」,開機那一次才是主要的一輪;定時拉是給
+ * 「電腦開著、手機沒連 Tailscale」的情況用的。
+ */
+const RELAY_PULL_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
+ * 定時從雲端中繼站把照片拉回來建單(ADR-0009)。啟動時拉一次,之後定時拉。
+ * 回傳停止函式,關機時先停掉再關 pg-boss。
+ *
+ * 不重疊:上一輪還沒跑完(例如慢速網路在下載大照片)就跳過這一輪 ——
+ * 兩輪同時拉同一件雖然有主鍵擋著,但沒必要讓它發生。
+ */
+function startRelayPulling(boss: PgBoss, db: Db, relayUrl: string): () => void {
+  // 建單走與 web 同一份 intake,只是換成 worker 自己的連線與 pg-boss
+  const intake: IntakeDeps = {
+    db,
+    uploadDir: env.UPLOAD_DIR,
+    sendRecognizeJob: async (payload) => {
+      const jobId = await boss.send(QUEUES.recognizeReceipt, payload, { ...RECOGNIZE_RETRY_OPTIONS });
+      if (!jobId) throw new Error("辨識工作派送失敗(pg-boss 未回傳 job id)");
+    },
+  };
+  const client = httpRelayClient(relayUrl, env.RELAY_PULL_TOKEN);
+  let running = false;
+
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const summary = await pullFromRelay({
+        client,
+        receiptExists: (id) => receiptExists(db, id),
+        createReceipt: (input) => createAiReceiptRecord(intake, input),
+      });
+      if (summary.imported.length > 0) {
+        console.log(
+          `[中繼站] 拉回 ${summary.imported.length} 筆,已派 AI 辨識:${summary.imported.join(", ")}`,
+        );
+      }
+      if (summary.duplicates.length > 0) {
+        console.log(`[中繼站] ${summary.duplicates.length} 筆本機已有,已從中繼站刪除`);
+      }
+      // 留在中繼站的件代表需要人看(例如經手人對不到帳號),每一輪都提醒
+      for (const left of summary.left) {
+        console.warn(`[中繼站] ${left.id} 留在中繼站沒動:${left.reason}`);
+      }
+    } catch (err) {
+      // 連不到中繼站(沒網路、Cloudflare 有狀況):下一輪再試,不讓 worker 掛掉
+      console.warn(
+        `[中繼站] 這一輪拉取失敗,${RELAY_PULL_INTERVAL_MS / 60_000} 分鐘後再試:${
+          (err as Error)?.message ?? "未知錯誤"
+        }`,
+      );
+    } finally {
+      running = false;
+    }
+  };
+
+  void tick();
+  const timer = setInterval(() => void tick(), RELAY_PULL_INTERVAL_MS);
+  return () => clearInterval(timer);
 }
 
 async function main() {
@@ -146,9 +213,15 @@ async function main() {
     }
   });
 
-  console.log(`worker 已啟動(辨識器:${recognizer.id}),等待任務中`);
+  // 要在 boss.work() 之後:拉回的件會立刻派辨識工作,worker 得已經在接工作了
+  const stopRelayPulling = env.RELAY_URL ? startRelayPulling(boss, db, env.RELAY_URL) : () => {};
+
+  console.log(
+    `worker 已啟動(辨識器:${recognizer.id};雲端中繼站:${env.RELAY_URL ? "每 5 分鐘拉取" : "未設定"}),等待任務中`,
+  );
 
   const shutdown = async () => {
+    stopRelayPulling();
     await boss.stop();
     process.exit(0);
   };

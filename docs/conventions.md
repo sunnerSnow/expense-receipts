@@ -104,7 +104,7 @@ db 不 import core(保持互不依賴、migration 工具不用跑 core 的程式
 ## 7. 測試
 
 - core 的公開函式必有 vitest 單元測試,測試檔與原始碼同目錄(`*.test.ts`)
-- 跑 `pnpm test` = 全 workspace;目前只有 core 有測試腳本
+- 跑 `pnpm test` = 全 workspace(core、auth、intake、relay、worker 有測試腳本)
 - **`pnpm build` 綠不代表 `pnpm dev` 能跑**:dev 會多編一份 edge runtime 的
   `instrumentation`,production build 不會。動到 `lib/env.ts`、`instrumentation.ts`
   或 `packages/config` 時,一定要真的起一次 `pnpm dev` 並開 `/login` 確認 200
@@ -178,6 +178,13 @@ chrome --headless=new --remote-debugging-port=9222 about:blank
 至少要驗:目標元素有 `__react*` 屬性(代表已 hydrate)、`Network.loadingFailed`
 沒有 script/stylesheet、以及互動後畫面真的變了。
 
+**無頭 Chrome 的 CacheStorage 可能整個不能用**(`caches.open()` 回 `UnknownError`,
+連開一個全新的快取都失敗)—— 這時「離線頁從 service worker 快取打開」驗不了,
+要驗得用 Docker 跑的正式環境。檔案選取用 CDP 的 `DOM.setFileInputFiles`,
+React 受控的 input 要用原生 setter + `input` 事件才會更新 state。
+要驗會寫資料的流程時,在同一個 Postgres 容器另開測試資料庫(`createdb`),
+web/worker 用環境變數指過去,測完 `dropdb` —— 不要拿真正的單據資料庫測
+
 ## 7g. 離線與連線判斷
 
 - **不要用 `navigator.onLine` 判斷「送不送得出去」**。它只說裝置有沒有網路介面;
@@ -212,6 +219,9 @@ chrome --headless=new --remote-debugging-port=9222 about:blank
   (web 的 Node 與 Cloudflare Worker 都要能跑)。**要從這個子路徑 import**,
   從 `@expense-receipts/auth` 根目錄 import 會連帶拉進 scrypt 用的 `node:crypto`
 - `RELAY_URL` 沒設 = 功能關閉,行為必須與 ADR-0008 完全相同
+- worker 拉取:啟動時一次、之後每 5 分鐘(每天 288 次 list,在 KV 免費額度內),
+  上一輪沒跑完就跳過。看不懂或建不起來的件**留在中繼站**、每輪記一次警告,
+  絕不為了清乾淨而刪(那是憑證唯一的副本)
 - 手機送出後怎麼處理一律走 core 的 `classifyUploadResponse`(本機與中繼站同一套):
   送達才刪;401 與 5xx/限流/逾時**整輪停下、不標失敗**(不是照片的錯);
   其他 4xx 才標成失敗讓使用者處理
