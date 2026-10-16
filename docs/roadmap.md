@@ -139,7 +139,8 @@
 - ✅ 上傳憑證的簽章/驗章(WebCrypto,`packages/auth/relay-credential`)+ 測試
 - ✅ `apps/relay`:Cloudflare Worker + KV,收件/列出/取件/刪除四個端點
   (契約在 core 的 `relay.ts`;`wrangler dev` 本機實測 1MB 照片收件→取件逐位元組一致)
-- ⬜ web:`/api/relay/credential` 發憑證;離線頁「本機 → 中繼站 → 留佇列」的送出順序
+- ✅ web:`/api/relay/credential` 發憑證;離線頁「本機 → 中繼站 → 留佇列」的送出順序,
+  存檔後立刻送
 - ⬜ worker:啟動時與每 5 分鐘拉一次,建單成功才刪中繼站的件
 - ⬜ operations.md:部署步驟、密鑰兩邊一致、出發前先領憑證、手機遺失換密鑰
 

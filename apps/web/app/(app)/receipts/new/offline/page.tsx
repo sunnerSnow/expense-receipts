@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { env } from "@/lib/env";
 import { OfflineCapture } from "./OfflineCapture";
 
 /**
@@ -15,10 +16,18 @@ export default async function OfflineCapturePage() {
   return (
     <>
       <h1>離線拍收據</h1>
-      <p className="muted small">
-        人在國外、電腦沒開的時候用這頁:照片先存在手機裡,回到有網路的地方
-        打開這個 App 就會自動補送、進 AI 辨識。
-      </p>
+      {env.RELAY_URL ? (
+        <p className="muted small">
+          人在外面、電腦沒開的時候用這頁:有網路就先送到雲端中繼站,辦公室電腦
+          開機後自動進來辨識;完全沒網路(例如飛機上)就先存在手機,有網路時
+          打開這個 App 再送。
+        </p>
+      ) : (
+        <p className="muted small">
+          人在國外、電腦沒開的時候用這頁:照片先存在手機裡,回到有網路的地方
+          打開這個 App 就會自動補送、進 AI 辨識。
+        </p>
+      )}
 
       <OfflineCapture />
 

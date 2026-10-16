@@ -212,6 +212,13 @@ chrome --headless=new --remote-debugging-port=9222 about:blank
   (web 的 Node 與 Cloudflare Worker 都要能跑)。**要從這個子路徑 import**,
   從 `@expense-receipts/auth` 根目錄 import 會連帶拉進 scrypt 用的 `node:crypto`
 - `RELAY_URL` 沒設 = 功能關閉,行為必須與 ADR-0008 完全相同
+- 手機送出後怎麼處理一律走 core 的 `classifyUploadResponse`(本機與中繼站同一套):
+  送達才刪;401 與 5xx/限流/逾時**整輪停下、不標失敗**(不是照片的錯);
+  其他 4xx 才標成失敗讓使用者處理
+- 憑證在 `OfflineSync`(每一頁)連得到本機時自動更新,滿一週換新
+  (`shouldRefreshRelayCredential`)—— 出差前打開 App 任何一頁就領好了
+- 收件規則(格式、15MB、UUID)本機補送端點與中繼站共用 core 的常數,
+  同一張照片不能「本機收、中繼站不收」
 
 ## 7f. 容器
 

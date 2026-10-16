@@ -45,8 +45,14 @@ function toBase64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** 不是合法 base64url 時回傳 null,不丟例外 */
-function fromBase64Url(text: string): Uint8Array | null {
+/**
+ * 不是合法 base64url 時回傳 null,不丟例外。
+ *
+ * 回傳型別明確標成 `Uint8Array<ArrayBuffer>`:TS 5.7 起 DOM 的 `BufferSource`
+ * 不收 `Uint8Array<ArrayBufferLike>`(可能是 SharedArrayBuffer)—— 在 web 的
+ * DOM 型別下編譯時,`crypto.subtle.verify` 會拒收沒標的版本。
+ */
+function fromBase64Url(text: string): Uint8Array<ArrayBuffer> | null {
   if (!/^[A-Za-z0-9_-]*$/.test(text)) return null;
   const padded = text.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (text.length % 4)) % 4);
   try {

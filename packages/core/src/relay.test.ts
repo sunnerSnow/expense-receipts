@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   CAPTURE_MAX_IMAGE_BYTES,
   checkRelayUpload,
+  classifyUploadResponse,
   isUploadId,
   parseRelayUploadMeta,
+  RELAY_CREDENTIAL_REFRESH_AFTER_MS,
   RELAY_NOTE_MAX_LENGTH,
+  shouldRefreshRelayCredential,
 } from "./relay";
 
 const ID = "3f1c2a4e-8b7d-4c6a-9e5f-1a2b3c4d5e6f";
@@ -100,5 +103,45 @@ describe("parseRelayUploadMeta", () => {
     expect(parseRelayUploadMeta({ ...good, mimeType: "text/html" })).toBeNull();
     expect(parseRelayUploadMeta({ ...good, note: 1 })).toBeNull();
     expect(parseRelayUploadMeta({ ...good, receivedAt: "yesterday" })).toBeNull();
+  });
+});
+
+describe("classifyUploadResponse", () => {
+  it("2xx(含 duplicate 的 200)→ sent", () => {
+    expect(classifyUploadResponse(200)).toBe("sent");
+    expect(classifyUploadResponse(201)).toBe("sent");
+  });
+
+  it("401 → unauthorized(整輪停下)", () => {
+    expect(classifyUploadResponse(401)).toBe("unauthorized");
+  });
+
+  it("5xx、限流、逾時 → retry-later(不算照片的錯)", () => {
+    for (const s of [500, 502, 503, 504, 408, 429]) {
+      expect(classifyUploadResponse(s)).toBe("retry-later");
+    }
+  });
+
+  it("其他 4xx → rejected(照片本身的問題)", () => {
+    for (const s of [400, 403, 404, 413, 415]) {
+      expect(classifyUploadResponse(s)).toBe("rejected");
+    }
+  });
+});
+
+describe("shouldRefreshRelayCredential", () => {
+  const NOW = Date.UTC(2026, 9, 16);
+
+  it("還沒有憑證就要領", () => {
+    expect(shouldRefreshRelayCredential(null, NOW)).toBe(true);
+  });
+
+  it("一週內不換,滿一週就換", () => {
+    expect(shouldRefreshRelayCredential(NOW - RELAY_CREDENTIAL_REFRESH_AFTER_MS + 1, NOW)).toBe(false);
+    expect(shouldRefreshRelayCredential(NOW - RELAY_CREDENTIAL_REFRESH_AFTER_MS, NOW)).toBe(true);
+  });
+
+  it("簽發時間在未來(時鐘被調過)也換", () => {
+    expect(shouldRefreshRelayCredential(NOW + 60_000, NOW)).toBe(true);
   });
 });

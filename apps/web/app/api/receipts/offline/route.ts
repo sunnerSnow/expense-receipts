@@ -1,3 +1,4 @@
+import { CAPTURE_IMAGE_TYPES, CAPTURE_MAX_IMAGE_BYTES, isUploadId } from "@expense-receipts/core";
 import { getCurrentUser } from "@/lib/auth";
 import { createAiReceiptRecord, receiptExists } from "@/lib/receipt-intake";
 
@@ -13,19 +14,12 @@ import { createAiReceiptRecord, receiptExists } from "@/lib/receipt-intake";
  * 回 `duplicate` 讓客戶端安心把它從佇列移除,不會變成兩筆單據。
  */
 
-/** 只收影像;離線佇列不讓使用者填金額日期(那些交給 AI 辨識) */
-const ALLOWED_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-]);
-
-/** 與 next.config.ts 的 serverActions.bodySizeLimit 一致 */
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/*
+  只收影像;離線佇列不讓使用者填金額日期(那些交給 AI 辨識)。
+  格式、大小上限、id 規則與雲端中繼站共用 core 的同一份(ADR-0009)——
+  同一張照片不該「送本機收、送中繼站不收」。
+*/
+const MAX_IMAGE_BYTES = CAPTURE_MAX_IMAGE_BYTES;
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -47,7 +41,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const id = String(form.get("id") ?? "");
-  if (!UUID_RE.test(id)) return json({ error: "id 不是合法的 UUID" }, 400);
+  if (!isUploadId(id)) return json({ error: "id 不是合法的 UUID" }, 400);
 
   const image = form.get("image");
   if (!(image instanceof File) || image.size === 0) {
@@ -56,7 +50,7 @@ export async function POST(req: Request): Promise<Response> {
   if (image.size > MAX_IMAGE_BYTES) {
     return json({ error: `影像太大(上限 ${MAX_IMAGE_BYTES / 1024 / 1024}MB)` }, 413);
   }
-  if (!ALLOWED_TYPES.has(image.type)) {
+  if (!CAPTURE_IMAGE_TYPES.includes(image.type)) {
     return json({ error: `不支援的影像格式:${image.type || "(未知)"}` }, 415);
   }
 

@@ -51,11 +51,15 @@ export {
   CAPTURE_IMAGE_TYPES,
   CAPTURE_MAX_IMAGE_BYTES,
   checkRelayUpload,
+  classifyUploadResponse,
   isUploadId,
   parseRelayUploadMeta,
+  RELAY_CREDENTIAL_REFRESH_AFTER_MS,
   RELAY_NOTE_MAX_LENGTH,
+  shouldRefreshRelayCredential,
   type RelayUploadCheck,
   type RelayUploadMeta,
+  type UploadOutcome,
 } from "./relay";
 export { toStorageKey } from "./storage-path";
 export { DEFAULT_CATEGORIES, type CategorySeed } from "./categories";

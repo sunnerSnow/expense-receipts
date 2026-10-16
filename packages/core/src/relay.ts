@@ -99,3 +99,37 @@ export function parseRelayUploadMeta(raw: unknown): RelayUploadMeta | null {
     receivedAt: r.receivedAt,
   };
 }
+
+/**
+ * 手機佇列送出一件之後,依 HTTP 狀態決定這一件怎麼處理。本機與中繼站共用同一套規則:
+ *
+ * - `sent`:對方收下了(含「這個 id 已經收過」的 duplicate)→ 從手機佇列刪除
+ * - `unauthorized`:沒登入 / 憑證失效 → 整輪停下,這時送什麼都一樣是 401
+ * - `retry-later`:對方暫時收不了(5xx、限流、逾時)→ 整輪停下,**不算這張照片的錯**,
+ *   下次再送。中繼站的 KV 當日額度用完就是這一類
+ * - `rejected`:其他 4xx,照片本身有問題(格式、太大)→ 標成失敗讓使用者看到,
+ *   繼續送下一件,不要讓一張壞照片卡住整條佇列
+ */
+export type UploadOutcome = "sent" | "unauthorized" | "retry-later" | "rejected";
+
+export function classifyUploadResponse(status: number): UploadOutcome {
+  if (status >= 200 && status < 300) return "sent";
+  if (status === 401) return "unauthorized";
+  if (status >= 500 || status === 408 || status === 429) return "retry-later";
+  return "rejected";
+}
+
+/**
+ * 上傳憑證多久換一次新的。
+ *
+ * 憑證效期 90 天,但「出差前打開一次 App」不會剛好在效期快到時 —— 每週換新,
+ * 讓手機上的憑證幾乎總是新的,出門一個月也不會在半路失效。
+ */
+export const RELAY_CREDENTIAL_REFRESH_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function shouldRefreshRelayCredential(issuedAt: number | null, nowMs: number): boolean {
+  if (issuedAt === null || !Number.isFinite(issuedAt)) return true;
+  // 時鐘被調回去(issuedAt 在未來)也換一張,不要拿一張可能被中繼站拒收的憑證出門
+  if (issuedAt > nowMs) return true;
+  return nowMs - issuedAt >= RELAY_CREDENTIAL_REFRESH_AFTER_MS;
+}
