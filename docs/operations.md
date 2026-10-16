@@ -212,11 +212,18 @@ docker compose run --rm -e NEW_PASSWORD='一句夠長的密碼' tools `
 ### 舊機器:匯出資料庫
 
 ```powershell
+docker compose stop web worker     # 先停收件,見下方說明
 docker compose exec -T db sh -c "pg_dump -U app expense_receipts > /tmp/db.sql"
 docker cp expense-receipts-db:/tmp/db.sql .\db.sql
+docker compose down                # 匯出完整套停掉
 ```
 
 連同 `.env`、`uploads/`、`exports/` 一起複製到隨身碟或雲端硬碟。
+
+**舊機器從匯出那一刻起就不要再開 web 和 worker。** 匯出後才進來的單據不會在
+新機器上;更麻煩的是 worker 一開就會從雲端中繼站拉照片,照片進到舊機器的資料庫,
+中繼站那份拉回後就刪了,新機器永遠收不到。搬家期間手機會顯示「連不到伺服器」、
+改送中繼站,照片在那裡等新機器的 worker 來拉,不會遺失。
 
 > **為什麼不直接複製 Docker volume**:PostgreSQL 執行中的資料目錄是幾十個互相
 > 依賴的檔案,複製到「時間對不齊」的狀態就壞了,而且要到新機器才會發現。
@@ -258,6 +265,42 @@ dump 帶了 `drizzle.__drizzle_migrations`。
 `.env` 裡的 `DATABASE_URL` 指向 `localhost:5433`,那是給宿主的工具用的
 (`pnpm db:studio`、`psql`);容器之間走內部網路的 `db:5432`,由 compose 覆寫,
 不用改。
+
+### 新機器:接上 Tailscale(讓網址保持不變)
+
+手機開的網址是用電腦名稱組出來的(`https://電腦名.你的tailnet.ts.net`)。新電腦
+名字不一樣,網址就跟著變,而這個網址綁著三件事:
+
+- 大家手機主畫面上的捷徑
+- 中繼站的 `ALLOWED_ORIGINS` —— 對不上就會「來源不允許」,送不進中繼站
+- 手機裡還沒送出的離線照片 —— 存在瀏覽器裡、按網址分開存,換網址就卡在舊網址下
+
+所以**把新電腦取成舊電腦的名字**,這三件事都不用動,手機也不用重裝或重新登入:
+
+1. Tailscale 管理頁 → [Machines](https://login.tailscale.com/admin/machines) →
+   **先刪掉舊電腦**(名字不能重複,不先刪的話新電腦會被自動加上 `-1`)
+2. 新電腦裝 Tailscale,用**同一個帳號**登入
+3. 管理頁新電腦那一列 → ⋯ → Edit machine name → 取消「Auto-generate from OS
+   hostname」→ 填舊電腦的名字
+4. 改完名才掛網頁(如果先掛了,改名後跑一次 `tailscale serve reset` 再掛):
+
+```powershell
+tailscale serve --bg 3000
+tailscale serve status        # 網址要跟以前一模一樣
+```
+
+第一次開會比較慢,Tailscale 在申請 HTTPS 憑證。驗收:手機用原本的捷徑能登入,
+而且 `docker compose logs worker --tail 5` 看得到「雲端中繼站:每 5 分鐘拉取」。
+
+有把這台電腦分享給同事的話,要**重新分享** —— 分享是綁在機器上的,舊電腦刪掉
+分享就沒了。
+
+**不改名也可以**,代價是:
+
+- 中繼站要換成新網址(要有 Node 與 `wrangler login`,任何一台裝好的電腦都能做):
+  `cd apps\relay; npx wrangler secret put ALLOWED_ORIGINS`(含 `https://`,結尾不要 `/`)
+- 每個人用新網址重新「加入主畫面」
+- 手機裡還沒送出的離線照片要在**搬家前**先送完,否則會卡在舊網址下
 
 ## 要改程式的時候
 
@@ -310,7 +353,7 @@ pnpm worker        # 另一個終端機
 | 離線存的單據沒補送 | 打開 App 任一頁會自動補送;或到離線頁按「立即送出」看錯誤訊息 |
 | 送到中繼站的照片沒進系統 | `docker compose logs worker \| Select-String 中繼站`。「留在中繼站沒動」會寫原因(例如經手人對不到帳號),照片不會被刪 |
 | 離線頁說「上傳憑證失效」 | 換過 `RELAY_SECRET` 或超過 90 天沒連回辦公室。連得到電腦時打開 App 一次就會更新 |
-| 送中繼站時顯示「來源不允許」 | Cloudflare 的 `ALLOWED_ORIGINS` 跟手機開 App 的網址不一致(要含 `https://`,結尾不要 `/`) |
+| 送中繼站時顯示「來源不允許」 | Cloudflare 的 `ALLOWED_ORIGINS` 跟手機開 App 的網址不一致(要含 `https://`,結尾不要 `/`)。剛換電腦的話,見「換機器 → 接上 Tailscale」 |
 | 離線頁一直說「還沒領到中繼站的憑證」 | `.env` 的 `RELAY_URL` 有沒有設、web 有沒有重建 |
 | 資料庫連不上 | Docker Desktop 有沒有啟動(`docker compose ps`) |
 | 改了程式沒生效 | 忘了 `--build` |
