@@ -1,0 +1,17 @@
+# 雲端中繼站(ADR-0009)。手機在連不到本機時把照片送到這裡,本機 worker 開機後拉回。
+#
+# 本機試跑:pnpm relay:dev(密鑰放 apps/relay/.dev.vars,範本見 .dev.vars.example)
+# 部署:   pnpm relay:deploy(第一次部署的步驟見 docs/operations.md)
+#
+# 密鑰與允許來源一律用 `wrangler secret put` 設定,不要寫進這個檔案(會進版控):
+#   RELAY_SECRET / RELAY_PULL_TOKEN / ALLOWED_ORIGINS
+
+name = "expense-receipts-relay"
+main = "src/index.ts"
+compatibility_date = "2026-09-25"
+
+# 照片暫存區。id 在第一次部署前用 `wrangler kv namespace create UPLOADS` 建立後填入;
+# KV namespace 的 id 不是機密,可以進版控
+[[kv_namespaces]]
+binding = "UPLOADS"
+id = "00000000000000000000000000000000"

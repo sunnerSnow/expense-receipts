@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Workers 的全域(KVNamespace、ExportedHandler、Request…)。不放 node 型別:
+    // 這份程式跑在 workerd,誤用 Node API 要在編譯期就被抓到
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": ["src"]
+}

@@ -14,6 +14,10 @@ Thumbs.db
 
 .turbo/
 .vercel/
+
+# Cloudflare Worker(apps/relay):本機密鑰與 wrangler dev 的本機狀態(含模擬 KV 裡的照片)
+.dev.vars
+.wrangler/
 next-env.d.ts
 *.tsbuildinfo
 

@@ -8,6 +8,7 @@
 apps/web        Next.js 15 PWA:頁面 + route handlers(只做 IO 與組裝)
 apps/worker     pg-boss:AI 辨識(Phase 2)、匯出產生(Phase 3)
                 src/recognizer/ 是辨識供應商的 adapter(目前 Gemini,見 ADR-0004)
+apps/relay      Cloudflare Worker 雲端中繼站:只收件/交件,不辨識、不碰 DB(ADR-0009)
 packages/core   業務邏輯(純函式,禁止 import 任何 IO)—— QR 解析、扣抵判斷、
                 狀態機、AI 辨識的提示詞/輸出 schema/結果驗證
 packages/db     Drizzle schema + migrations + seed
@@ -59,6 +60,8 @@ pnpm test         # 全 workspace 測試(vitest)
 pnpm db:generate  # schema 變更 → 產生 migration(產出的 SQL 要人工 review)
 pnpm db:migrate   # 套用 migrations
 pnpm db:studio    # Drizzle Studio 瀏覽資料
+pnpm relay:dev    # 本機跑中繼站(wrangler dev;密鑰放 apps/relay/.dev.vars)
+pnpm relay:deploy # 部署中繼站到 Cloudflare
 ```
 
 ## 完成定義(DoD)

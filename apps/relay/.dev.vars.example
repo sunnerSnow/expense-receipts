@@ -1,0 +1,7 @@
+# 複製成 .dev.vars 給 `pnpm relay:dev` 用(.dev.vars 已 gitignore)。
+# 兩把密鑰都至少 32 字元,值要與根目錄 .env 的同名變數一致。
+# 產生方式:node -e "console.log(crypto.randomBytes(32).toString('base64url'))"
+RELAY_SECRET=
+RELAY_PULL_TOKEN=
+# 允許上傳的網頁來源(本機 web 的網址),逗號分隔
+ALLOWED_ORIGINS=http://localhost:3000

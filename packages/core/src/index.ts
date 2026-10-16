@@ -47,6 +47,16 @@ export {
   PASSWORD_MIN_LENGTH,
   type PasswordCheck,
 } from "./password";
+export {
+  CAPTURE_IMAGE_TYPES,
+  CAPTURE_MAX_IMAGE_BYTES,
+  checkRelayUpload,
+  isUploadId,
+  parseRelayUploadMeta,
+  RELAY_NOTE_MAX_LENGTH,
+  type RelayUploadCheck,
+  type RelayUploadMeta,
+} from "./relay";
 export { toStorageKey } from "./storage-path";
 export { DEFAULT_CATEGORIES, type CategorySeed } from "./categories";
 export { amountToCents, formatAmount, formatCents, isValidAmount } from "./money";
